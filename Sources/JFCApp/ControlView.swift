@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ControlView: View {
   @ObservedObject var model: AppState
+  @Environment(\.colorScheme) private var colorScheme
 
   var body: some View {
     VStack(alignment: .leading, spacing: 24) {
@@ -20,14 +21,10 @@ struct ControlView: View {
 
   private var header: some View {
     HStack(spacing: 14) {
-      ZStack {
-        RoundedRectangle(cornerRadius: 13, style: .continuous)
-          .fill(.tint)
-        Image(systemName: "cursorarrow.click")
-          .font(.system(size: 25, weight: .semibold))
-          .foregroundStyle(.white)
-      }
-      .frame(width: 52, height: 52)
+      Image(nsImage: NSApplication.shared.applicationIconImage)
+        .resizable()
+        .scaledToFit()
+        .frame(width: 52, height: 52)
 
       VStack(alignment: .leading, spacing: 2) {
         Text("JFC")
@@ -36,7 +33,44 @@ struct ControlView: View {
           .font(.system(size: 14))
           .foregroundStyle(.secondary)
       }
+
+      Spacer()
+
+      Link(destination: URL(string: "https://github.com/engina/jfc")!) {
+        githubMark
+          .frame(width: 19, height: 19)
+          .padding(6)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .opacity(0.58)
+      .help("View JFC on GitHub")
+      .accessibilityLabel("View JFC on GitHub")
     }
+  }
+
+  @ViewBuilder
+  private var githubMark: some View {
+    if let image = githubMarkImage {
+      Image(nsImage: image)
+        .resizable()
+        .scaledToFit()
+    } else {
+      Image(systemName: "link")
+        .resizable()
+        .scaledToFit()
+    }
+  }
+
+  private var githubMarkImage: NSImage? {
+    let color = colorScheme == .dark ? "White" : "Black"
+    guard
+      let url = Bundle.main.url(
+        forResource: "GitHub-Invertocat-\(color)",
+        withExtension: "pdf"
+      )
+    else { return nil }
+    return NSImage(contentsOf: url)
   }
 
   private var onboarding: some View {

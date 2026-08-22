@@ -87,6 +87,23 @@ foreground application, and restored one control window. The helper exited
 cleanly in both registration and simulation tests. An actual logout/login or
 reboot remains the final manual acceptance test.
 
+## Direct distribution
+
+JFC is distributed outside the Mac App Store as a compressed UDIF disk image.
+The app and embedded login helper are signed inside-out with a Developer ID
+Application identity, Hardened Runtime, and secure timestamps. No hardened
+runtime exception entitlements are currently required. Release binaries are
+universal `arm64` and `x86_64` so the macOS 14 deployment target works on both
+supported processor families.
+
+The disk image contains only the app and an Applications shortcut. An optional
+660×400 background supplies a fixed Finder window layout without adding runtime
+dependencies to JFC. The image is signed with the same Developer ID Application
+identity, submitted through `notarytool` using credentials stored in the
+Keychain, and stapled after acceptance. The release script validates the ticket
+and asks Gatekeeper to assess the final DMG. A Developer ID Installer certificate
+is unnecessary because JFC does not ship an installer package.
+
 ## Primary references
 
 - Apple, `CGEventTapCreate` and event-tap stages:
@@ -105,3 +122,7 @@ reboot remains the final manual acceptance test.
   <https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement>
 - Apple, main-app login registration:
   <https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp>
+- Apple, notarizing macOS software before distribution:
+  <https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution>
+- Apple, Developer ID certificates:
+  <https://developer.apple.com/help/account/certificates/create-developer-id-certificates>
