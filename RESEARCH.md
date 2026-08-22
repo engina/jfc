@@ -98,11 +98,18 @@ supported processor families.
 
 The disk image contains only the app and an Applications shortcut. An optional
 660×400 background supplies a fixed Finder window layout without adding runtime
-dependencies to JFC. The image is signed with the same Developer ID Application
-identity, submitted through `notarytool` using credentials stored in the
-Keychain, and stapled after acceptance. The release script validates the ticket
-and asks Gatekeeper to assess the final DMG. A Developer ID Installer certificate
-is unnecessary because JFC does not ship an installer package.
+dependencies to JFC. Packaging mounts a writable image, addresses its root by
+an absolute POSIX alias, and asks Finder to persist the background and icon-view
+settings. The writable image has a unique temporary volume name so AppleScript
+cannot resolve an unrelated mounted or cached `JFC` volume. After Finder creates
+a nonempty root `.DS_Store`, the same filesystem is renamed to `JFC`, detached,
+and converted to compressed UDIF. Packaging fails if the metadata is not written.
+
+The image is signed with the same Developer ID Application identity, submitted
+through `notarytool` using credentials stored in the Keychain, and stapled after
+acceptance. The release script validates the ticket and asks Gatekeeper to assess
+the final DMG. A Developer ID Installer certificate is unnecessary because JFC
+does not ship an installer package.
 
 ## Primary references
 
@@ -110,6 +117,11 @@ is unnecessary because JFC does not ship an installer package.
   <https://developer.apple.com/documentation/coregraphics/cgevent/tapcreate(tap:place:options:eventsofinterest:callback:userinfo:)>
 - Apple, `CGEventTapCallBack` return semantics:
   <https://developer.apple.com/documentation/coregraphics/cgeventtapcallback>
+- Apple, AppleScript absolute POSIX file specifiers:
+  <https://developer.apple.com/library/archive/documentation/AppleScript/Conceptual/AppleScriptLangGuide/conceptual/ASLR_fundamentals.html#//apple_ref/doc/uid/TP40000983-CH218-SW28>
+- Apple, Finder icon-view scripting example:
+  <https://developer.apple.com/library/archive/documentation/AppleScript/Conceptual/AppleScriptLangGuide/reference/ASLR_cmds.html>
+- Apple, the installed Finder scripting dictionary and `hdiutil(1)` manual.
 - Apple, `AXUIElementCopyElementAtPosition` z-order hit-testing:
   <https://developer.apple.com/documentation/applicationservices/1462077-axuielementcopyelementatposition>
 - Apple, `NSRunningApplication.activate(options:)`:

@@ -21,6 +21,8 @@ JFC_DMG_WORK=$(/usr/bin/mktemp -d /tmp/jfc-dmg.XXXXXX)
 JFC_DMG_ROOT="$JFC_DMG_WORK/root"
 JFC_DMG_READ_WRITE="$JFC_DMG_WORK/JFC-read-write.dmg"
 JFC_DMG_MOUNT="$JFC_DMG_WORK/mount"
+JFC_DMG_BUILD_SUFFIX=${JFC_DMG_WORK##*.}
+JFC_DMG_BUILD_VOLUME="JFC-$JFC_DMG_BUILD_SUFFIX"
 JFC_DMG_ATTACHED=0
 
 cleanup() {
@@ -53,20 +55,30 @@ if [ "$JFC_DMG_STYLE" = "1" ] && [ -f "$JFC_DMG_BACKGROUND" ]; then
     -quiet \
     -ov \
     -format UDRW \
-    -volname JFC \
+    -volname "$JFC_DMG_BUILD_VOLUME" \
     -srcfolder "$JFC_DMG_ROOT" \
     "$JFC_DMG_READ_WRITE"
   /usr/bin/hdiutil attach \
     -quiet \
     -readwrite \
-    -nobrowse \
+    -noautoopen \
     -noverify \
     -mountpoint "$JFC_DMG_MOUNT" \
     "$JFC_DMG_READ_WRITE"
   JFC_DMG_ATTACHED=1
 
   /usr/bin/osascript "$JFC_REPOSITORY_ROOT/Scripts/style-dmg.applescript" \
-    JFC background.png
+    "$JFC_DMG_MOUNT" background.png
+  JFC_DMG_METADATA_ATTEMPTS=0
+  while [ ! -s "$JFC_DMG_MOUNT/.DS_Store" ] && [ "$JFC_DMG_METADATA_ATTEMPTS" -lt 10 ]; do
+    /bin/sleep 1
+    JFC_DMG_METADATA_ATTEMPTS=$((JFC_DMG_METADATA_ATTEMPTS + 1))
+  done
+  if [ ! -s "$JFC_DMG_MOUNT/.DS_Store" ]; then
+    echo "Finder did not persist the DMG layout metadata" >&2
+    exit 1
+  fi
+  /usr/sbin/diskutil rename "$JFC_DMG_MOUNT" JFC >/dev/null
   /bin/sync
   /usr/bin/hdiutil detach -quiet "$JFC_DMG_MOUNT"
   JFC_DMG_ATTACHED=0
