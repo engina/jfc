@@ -66,7 +66,7 @@ struct ControlView: View {
 
         Spacer()
 
-        Button("Open Accessibility Settings") {
+        Button("Open System Settings") {
           model.requestAccessibility()
         }
         .buttonStyle(.borderedProminent)

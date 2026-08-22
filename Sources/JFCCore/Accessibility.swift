@@ -16,7 +16,6 @@ public enum AccessibilityPermission {
   }
 
   public static func openSystemSettings() {
-    _ = isTrusted(prompt: true)
     guard
       let url = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
