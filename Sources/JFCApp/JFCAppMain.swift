@@ -1,5 +1,14 @@
 import AppKit
 
+private enum LaunchContext {
+  static let loginEnvironmentKey = "JFC_LAUNCHED_AT_LOGIN"
+
+  static var isLoginLaunch: Bool {
+    ProcessInfo.processInfo.arguments.contains("--launch-at-login")
+      || ProcessInfo.processInfo.environment[loginEnvironmentKey] == "1"
+  }
+}
+
 @main
 enum JFCAppMain {
   @MainActor
@@ -7,8 +16,7 @@ enum JFCAppMain {
     let application = NSApplication.shared
     let delegate = AppDelegate()
     application.delegate = delegate
-    let launchedAtLogin = ProcessInfo.processInfo.arguments.contains("--launch-at-login")
-    application.setActivationPolicy(launchedAtLogin ? .accessory : .regular)
+    application.setActivationPolicy(LaunchContext.isLoginLaunch ? .accessory : .regular)
     application.run()
   }
 }
@@ -26,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.hideApplicationPresence()
     }
 
-    if !ProcessInfo.processInfo.arguments.contains("--launch-at-login") {
+    if !LaunchContext.isLoginLaunch {
       showControlWindow()
     }
   }

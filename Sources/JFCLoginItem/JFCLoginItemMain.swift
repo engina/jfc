@@ -22,8 +22,11 @@ final class LoginItemDelegate: NSObject, NSApplicationDelegate {
 
     let configuration = NSWorkspace.OpenConfiguration()
     configuration.activates = false
+    configuration.hides = true
     configuration.addsToRecentItems = false
+    configuration.promptsUserIfNeeded = false
     configuration.arguments = ["--launch-at-login"]
+    configuration.environment = ["JFC_LAUNCHED_AT_LOGIN": "1"]
 
     NSWorkspace.shared.openApplication(
       at: mainApplicationURL,

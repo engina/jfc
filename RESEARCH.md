@@ -74,10 +74,18 @@ event tap running. Reopening the app restores regular-app presence and presents
 the same window through the normal AppKit reopen callback. There is no menu-bar
 item.
 
-Start at Login uses `SMAppService.mainApp`, available on macOS 13 and later. JFC
-continues to target macOS 14 and later. Login launches remain hidden; deliberate
-activation from Finder, Spotlight, or another launcher presents the control
-window.
+Start at Login uses `SMAppService.loginItem(identifier:)`, available on macOS 13
+and later. JFC continues to target macOS 14 and later. Login launches remain
+hidden; deliberate activation from Finder, Spotlight, or another launcher
+presents the control window.
+
+The helper lives in `Contents/Library/LoginItems`. Registration was verified to
+reach the `enabled` state. A direct helper launch simulating login produced one
+main JFC process with both an argument and environment launch marker; it settled
+as a UI element with no windows. Reopening JFC reused that PID, changed it to a
+foreground application, and restored one control window. The helper exited
+cleanly in both registration and simulation tests. An actual logout/login or
+reboot remains the final manual acceptance test.
 
 ## Primary references
 

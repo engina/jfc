@@ -31,6 +31,10 @@ Closing the window leaves JFC running. Open `JFC.app` again from Finder,
 Spotlight, or another launcher to bring the window and its temporary Dock
 presence back.
 
+Start at Login uses macOS Service Management and a tiny helper embedded inside
+the app. The helper launches JFC without a window or Dock presence, then exits.
+Opening JFC later restores the existing background process's control window.
+
 Stop any copy of the CLI experiment before testing the app so that only one JFC
 event tap is running.
 
