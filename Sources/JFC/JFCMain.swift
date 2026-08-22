@@ -1,6 +1,7 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import JFCCore
 
 @main
 enum JFCMain {
@@ -19,18 +20,12 @@ enum JFCMain {
     let accessibilityGranted = AccessibilityPermission.isTrusted(
       prompt: options.promptForPermissions
     )
-    var inputMonitoringGranted = CGPreflightListenEventAccess()
-    if !inputMonitoringGranted && options.promptForPermissions {
-      inputMonitoringGranted = CGRequestListenEventAccess()
-    }
-
     Log.block([
       "jfc first-click experiment",
       "mode: \(options.observeOnly ? "observe only" : "same-event pass-through")",
       "activation: \(options.activationStrategy.rawValue)",
       "settle: \(options.settleMilliseconds) ms",
       "Accessibility: \(accessibilityGranted ? "granted" : "NOT GRANTED")",
-      "Input Monitoring: \(inputMonitoringGranted ? "granted" : "NOT GRANTED")",
     ])
 
     guard accessibilityGranted else {
@@ -38,7 +33,7 @@ enum JFCMain {
       Foundation.exit(1)
     }
 
-    let eventTap = EventTap(options: options)
+    let eventTap = EventTap(configuration: options.eventTapConfiguration)
     do {
       try eventTap.start()
     } catch {
@@ -57,8 +52,7 @@ enum JFCMain {
       "Permissions are required:",
       "1. Open System Settings > Privacy & Security > Accessibility.",
       "2. Enable or add this executable: \(executable)",
-      "3. If macOS asks, also enable it under Input Monitoring.",
-      "4. Quit and restart jfc after changing either permission.",
+      "3. Quit and restart jfc after changing the permission.",
       "",
       "Tip: run `swift build`, then grant the stable .build/debug/jfc executable.",
     ])

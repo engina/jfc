@@ -2,37 +2,76 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-enum EventTapStartError: Error, CustomStringConvertible {
+public enum ActivationStrategy: String, CaseIterable {
+  case ax
+  case appkit
+  case both
+}
+
+public struct EventTapConfiguration {
+  public var activationStrategy: ActivationStrategy
+  public var observeOnly: Bool
+  public var settleMilliseconds: UInt32
+  public var verbose: Bool
+  public var loggingEnabled: Bool
+
+  public init(
+    activationStrategy: ActivationStrategy = .both,
+    observeOnly: Bool = false,
+    settleMilliseconds: UInt32 = 0,
+    verbose: Bool = false,
+    loggingEnabled: Bool = false
+  ) {
+    self.activationStrategy = activationStrategy
+    self.observeOnly = observeOnly
+    self.settleMilliseconds = settleMilliseconds
+    self.verbose = verbose
+    self.loggingEnabled = loggingEnabled
+  }
+}
+
+public enum EventTapStartError: Error, CustomStringConvertible, LocalizedError {
   case creationFailed
   case runLoopSourceFailed
 
-  var description: String {
+  public var description: String {
     switch self {
     case .creationFailed:
-      "CGEvent tap creation failed. Grant Accessibility and Input Monitoring, then restart jfc."
+      "CGEvent tap creation failed. Grant Accessibility, then restart JFC."
     case .runLoopSourceFailed:
       "Could not create a run-loop source for the event tap."
     }
   }
+
+  public var errorDescription: String? {
+    description
+  }
 }
 
-final class EventTap {
-  private let options: CLIOptions
+public final class EventTap {
+  private let configuration: EventTapConfiguration
   private let resolver = WindowResolver()
   private let focuser = AccessibilityFocuser()
   private var tap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
+  private var sourceRunLoop: CFRunLoop?
   private var clickNumber: UInt64 = 0
 
-  init(options: CLIOptions) {
-    self.options = options
+  public var isRunning: Bool {
+    tap != nil
   }
 
-  func start() throws {
+  public init(configuration: EventTapConfiguration = EventTapConfiguration()) {
+    self.configuration = configuration
+  }
+
+  public func start() throws {
+    guard tap == nil else { return }
+
     let mask =
       (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
       | (CGEventMask(1) << CGEventType.leftMouseUp.rawValue)
-    let tapOptions: CGEventTapOptions = options.observeOnly ? .listenOnly : .defaultTap
+    let tapOptions: CGEventTapOptions = configuration.observeOnly ? .listenOnly : .defaultTap
 
     let callback: CGEventTapCallBack = { _, type, event, userInfo in
       guard let userInfo else {
@@ -56,25 +95,43 @@ final class EventTap {
     }
 
     guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+      CFMachPortInvalidate(tap)
       throw EventTapStartError.runLoopSourceFailed
     }
 
+    let runLoop = CFRunLoopGetCurrent()
     self.tap = tap
-    self.runLoopSource = source
-    CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+    runLoopSource = source
+    sourceRunLoop = runLoop
+    CFRunLoopAddSource(runLoop, source, .commonModes)
     CGEvent.tapEnable(tap: tap, enable: true)
   }
 
-  func run() -> Never {
+  public func stop() {
+    guard let tap else { return }
+
+    CGEvent.tapEnable(tap: tap, enable: false)
+    if let runLoopSource, let sourceRunLoop {
+      CFRunLoopRemoveSource(sourceRunLoop, runLoopSource, .commonModes)
+    }
+    CFMachPortInvalidate(tap)
+    self.tap = nil
+    runLoopSource = nil
+    sourceRunLoop = nil
+  }
+
+  public func run() -> Never {
     CFRunLoopRun()
     fatalError("event-tap run loop unexpectedly stopped")
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      Log.line(
-        "EVENT TAP DISABLED (\(type == .tapDisabledByTimeout ? "timeout" : "user input")); re-enabling"
-      )
+      if configuration.loggingEnabled {
+        Log.line(
+          "EVENT TAP DISABLED (\(type == .tapDisabledByTimeout ? "timeout" : "user input")); re-enabling"
+        )
+      }
       if let tap {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
@@ -82,7 +139,7 @@ final class EventTap {
     }
 
     if type == .leftMouseUp {
-      if options.verbose {
+      if configuration.verbose && configuration.loggingEnabled {
         Log.line("mouseUp: passed through unchanged")
       }
       return Unmanaged.passUnretained(event)
@@ -100,7 +157,7 @@ final class EventTap {
 
     switch resolver.resolve(at: point) {
     case .failure(let error):
-      if options.verbose {
+      if configuration.verbose && configuration.loggingEnabled {
         Log.block([
           "CLICK #\(clickNumber)",
           "cursor: \(format(point))",
@@ -113,7 +170,7 @@ final class EventTap {
     case .success(let target):
       let targetIsActive = activeApplication?.processIdentifier == target.pid
       if targetIsActive || target.shouldBypass {
-        if options.verbose {
+        if configuration.verbose && configuration.loggingEnabled {
           let reason =
             targetIsActive
             ? "target application is already active"
@@ -139,23 +196,25 @@ final class EventTap {
         clickState: clickState
       )
 
-      if options.observeOnly {
+      if configuration.observeOnly {
         lines.append("observe-only: would activate \(target.applicationName)")
         lines.append("forwarding original click unchanged")
-        Log.block(lines)
+        if configuration.loggingEnabled {
+          Log.block(lines)
+        }
         return Unmanaged.passUnretained(event)
       }
 
       lines.append(
-        "activating \(target.applicationName) via \(options.activationStrategy.rawValue)...")
-      let focusAttempt = focuser.focus(target, strategy: options.activationStrategy)
+        "activating \(target.applicationName) via \(configuration.activationStrategy.rawValue)...")
+      let focusAttempt = focuser.focus(target, strategy: configuration.activationStrategy)
       lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
 
-      if options.settleMilliseconds > 0 {
+      if configuration.settleMilliseconds > 0 {
         Thread.sleep(
-          forTimeInterval: Double(options.settleMilliseconds) / 1_000.0
+          forTimeInterval: Double(configuration.settleMilliseconds) / 1_000.0
         )
-        lines.append("held original event for \(options.settleMilliseconds) ms")
+        lines.append("held original event for \(configuration.settleMilliseconds) ms")
       }
 
       let totalElapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
@@ -166,7 +225,9 @@ final class EventTap {
           totalElapsed
         )
       )
-      Log.block(lines)
+      if configuration.loggingEnabled {
+        Log.block(lines)
+      }
       return Unmanaged.passUnretained(event)
     }
   }
@@ -197,12 +258,12 @@ final class EventTap {
   }
 }
 
-enum Log {
-  static func line(_ message: String) {
+public enum Log {
+  public static func line(_ message: String) {
     write(message + "\n")
   }
 
-  static func block(_ lines: [String]) {
+  public static func block(_ lines: [String]) {
     write(lines.joined(separator: "\n") + "\n\n")
   }
 

@@ -3,12 +3,26 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-enum AccessibilityPermission {
-  static func isTrusted(prompt: Bool) -> Bool {
+public enum AccessibilityPermission {
+  public static func isTrusted(prompt: Bool) -> Bool {
+    if !prompt {
+      return AXIsProcessTrustedWithOptions(nil)
+    }
+
     // The imported C symbol is mutable and therefore rejected by Swift 6's
     // strict concurrency checking. This is the symbol's documented value.
-    let options = ["AXTrustedCheckOptionPrompt": prompt] as CFDictionary
+    let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
     return AXIsProcessTrustedWithOptions(options)
+  }
+
+  public static func openSystemSettings() {
+    _ = isTrusted(prompt: true)
+    guard
+      let url = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+      )
+    else { return }
+    NSWorkspace.shared.open(url)
   }
 }
 

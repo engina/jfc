@@ -1,0 +1,293 @@
+import SwiftUI
+
+struct ControlView: View {
+  @ObservedObject var model: AppState
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 24) {
+      header
+
+      if model.accessibilityGranted {
+        controls
+      } else {
+        onboarding
+      }
+    }
+    .padding(30)
+    .frame(width: 520)
+    .background(Color(nsColor: .windowBackgroundColor))
+  }
+
+  private var header: some View {
+    HStack(spacing: 14) {
+      ZStack {
+        RoundedRectangle(cornerRadius: 13, style: .continuous)
+          .fill(.tint)
+        Image(systemName: "cursorarrow.click")
+          .font(.system(size: 25, weight: .semibold))
+          .foregroundStyle(.white)
+      }
+      .frame(width: 52, height: 52)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text("JFC")
+          .font(.system(size: 25, weight: .bold, design: .rounded))
+        Text("One click should be enough.")
+          .font(.system(size: 14))
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  private var onboarding: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(alignment: .leading, spacing: 7) {
+        Text("Allow JFC to focus the window you click")
+          .font(.title3.weight(.semibold))
+        Text(
+          "macOS requires Accessibility permission before JFC can activate the window beneath your pointer."
+        )
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+      }
+
+      permissionExplanation
+
+      if let errorMessage = model.errorMessage {
+        errorBanner(errorMessage)
+      }
+
+      HStack {
+        Button("Quit") {
+          NSApplication.shared.terminate(nil)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+
+        Spacer()
+
+        Button("Open Accessibility Settings") {
+          model.requestAccessibility()
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+      }
+
+      HStack(spacing: 7) {
+        ProgressView()
+          .controlSize(.small)
+        Text("JFC will continue automatically when permission is granted.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  private var permissionExplanation: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .top, spacing: 11) {
+        Image(systemName: "hand.raised.fill")
+          .foregroundStyle(.tint)
+          .frame(width: 20)
+        VStack(alignment: .leading, spacing: 3) {
+          Text("Accessibility")
+            .fontWeight(.medium)
+          Text("Used only to identify and focus the window beneath a left click.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+      }
+
+      Divider()
+
+      HStack(alignment: .top, spacing: 11) {
+        Image(systemName: "keyboard.badge.ellipsis")
+          .foregroundStyle(.secondary)
+          .frame(width: 20)
+        VStack(alignment: .leading, spacing: 3) {
+          Text("No Input Monitoring")
+            .fontWeight(.medium)
+          Text("JFC does not monitor keyboard input and does not request that permission.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+    .padding(16)
+    .background {
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(Color(nsColor: .controlBackgroundColor))
+    }
+  }
+
+  private var controls: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(spacing: 0) {
+        settingsRow(
+          icon: model.isRunning ? "checkmark.circle.fill" : "pause.circle.fill",
+          iconColor: model.isRunning ? .green : .secondary,
+          title: "JFC",
+          detail: statusDetail
+        ) {
+          Text(statusTitle)
+            .fontWeight(.medium)
+            .foregroundStyle(model.isRunning ? .green : .secondary)
+        }
+
+        Divider().padding(.leading, 43)
+
+        settingsRow(
+          icon: "hand.raised.fill",
+          iconColor: .green,
+          title: "Accessibility",
+          detail: "Permission granted"
+        ) {
+          Image(systemName: "checkmark")
+            .fontWeight(.semibold)
+            .foregroundStyle(.green)
+            .accessibilityLabel("Granted")
+        }
+
+        Divider().padding(.leading, 43)
+
+        settingsRow(
+          icon: "power",
+          iconColor: .accentColor,
+          title: "Start at Login",
+          detail: loginItemDetail
+        ) {
+          Toggle(
+            "Start at Login",
+            isOn: Binding(
+              get: { model.startsAtLogin },
+              set: { model.setStartsAtLogin($0) }
+            )
+          )
+          .labelsHidden()
+        }
+      }
+      .background {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+          .fill(Color(nsColor: .controlBackgroundColor))
+      }
+
+      if model.loginItemNeedsApproval {
+        HStack {
+          Label("Approve JFC under Allow in the Background.", systemImage: "exclamationmark.circle")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+          Spacer()
+          Button("Open Settings") {
+            model.openLoginItemsSettings()
+          }
+        }
+      }
+
+      if let errorMessage = model.errorMessage {
+        errorBanner(errorMessage)
+      }
+
+      HStack(spacing: 14) {
+        Button(model.isRunning ? "Stop JFC" : "Start JFC") {
+          if model.isRunning {
+            model.stop()
+          } else {
+            model.start()
+          }
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+
+        Text("Closing this window leaves JFC running.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+
+        Spacer()
+
+        Button("Quit") {
+          NSApplication.shared.terminate(nil)
+        }
+        .controlSize(.large)
+      }
+    }
+  }
+
+  private var statusTitle: String {
+    switch model.operationalState {
+    case .running: "Running"
+    case .stopped: "Stopped"
+    case .needsPermission: "Needs permission"
+    case .failed: "Couldn’t start"
+    }
+  }
+
+  private var statusDetail: String {
+    switch model.operationalState {
+    case .running: "First clicks pass through"
+    case .stopped: "Click-through is disabled"
+    case .needsPermission: "Accessibility permission is required"
+    case .failed: "JFC encountered an error"
+    }
+  }
+
+  private var loginItemDetail: String {
+    switch model.launchAtLoginStatus {
+    case .enabled: "Enabled"
+    case .requiresApproval: "Waiting for approval"
+    case .notRegistered: "Disabled"
+    case .notFound: "Unavailable in this build"
+    @unknown default: "Unknown"
+    }
+  }
+
+  private func settingsRow<Trailing: View>(
+    icon: String,
+    iconColor: Color,
+    title: String,
+    detail: String,
+    @ViewBuilder trailing: () -> Trailing
+  ) -> some View {
+    HStack(spacing: 12) {
+      Image(systemName: icon)
+        .font(.system(size: 17, weight: .medium))
+        .foregroundStyle(iconColor)
+        .frame(width: 22)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .fontWeight(.medium)
+        Text(detail)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+      trailing()
+    }
+    .padding(.horizontal, 15)
+    .frame(minHeight: 62)
+  }
+
+  private func errorBanner(_ message: String) -> some View {
+    HStack(alignment: .top, spacing: 10) {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+      Text(message)
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: 0)
+      Button {
+        model.clearError()
+      } label: {
+        Image(systemName: "xmark")
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Dismiss")
+    }
+    .padding(12)
+    .background {
+      RoundedRectangle(cornerRadius: 9, style: .continuous)
+        .fill(Color.orange.opacity(0.12))
+    }
+  }
+}

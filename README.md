@@ -1,27 +1,64 @@
 # jfc — just fucking click
 
-`jfc` is a deliberately small command-line experiment for system-wide macOS
-first-click behavior. It listens only for left mouse down/up. When a mouse-down
-lands in an inactive application's content window, it tries to focus that exact
-window and app, then returns the **original `CGEvent`** to the event system.
+JFC is a small native macOS utility for system-wide first-click behavior. It
+listens only for left mouse down/up. When a mouse-down lands in an inactive
+application's content window, it focuses that exact window and app, then
+returns the **original `CGEvent`** to the event system.
 
-This milestone does not synthesize or repost a mouse event. It is designed to
-answer the event-ordering question before building a menu-bar app.
+It does not synthesize or repost a mouse event. The same-event path has passed
+the physical Chrome/YouTube acceptance test with no settle delay.
 
-## Build and run
+## Build and launch the app
+
+```sh
+Scripts/build-app.sh
+open .build/JFC.app
+```
+
+This produces a locally ad-hoc-signed application bundle. While its window is
+open, JFC behaves like a normal app in the Dock and Cmd-Tab. Closing the window
+returns it to invisible background operation; it never occupies the menu bar.
+Its first launch presents a small Accessibility onboarding window. After
+permission is granted, the same window provides:
+
+- Running/stopped state
+- Start and Stop controls
+- Accessibility status
+- Start at Login, using `SMAppService`
+- Quit
+
+Closing the window leaves JFC running. Open `JFC.app` again from Finder,
+Spotlight, or another launcher to bring the window and its temporary Dock
+presence back.
+
+Stop any copy of the CLI experiment before testing the app so that only one JFC
+event tap is running.
+
+## Permissions
+
+JFC requires **Accessibility**. The tested default event tap works while Input
+Monitoring is not granted, so the app neither requests nor instructs the user
+to grant Input Monitoring.
+
+The packaged `JFC.app` has its own macOS privacy identity. A permission granted
+to Terminal or `.build/debug/jfc` does not grant permission to the app bundle.
+
+The local test bundle is not yet Developer ID signed or notarized. Those steps
+belong to the distribution milestone.
+
+## CLI experiment
 
 ```sh
 swift build
 .build/debug/jfc
 ```
 
-The first run requests Accessibility and Input Monitoring access. If the
-terminal prompt is not enough, add the stable `.build/debug/jfc` executable in:
+The first run requests Accessibility. If the terminal prompt is not enough,
+add the stable `.build/debug/jfc` executable in:
 
 - System Settings > Privacy & Security > Accessibility
-- System Settings > Privacy & Security > Input Monitoring
 
-Restart `jfc` after changing either permission. For a resolver-only smoke test:
+Restart `jfc` after changing the permission. For a resolver-only smoke test:
 
 ```sh
 .build/debug/jfc --observe --verbose
@@ -77,6 +114,5 @@ See all options with `.build/debug/jfc --help`.
 - Dragged events, movement, scrolling, right-click, and keyboard events are not
   observed.
 
-This is not yet a polished utility. In particular, the pass/fail result must be
-collected on a real desktop session before adding a reinjection fallback or a
-menu-bar wrapper.
+The CLI remains available so the event path can be tested independently of the
+application lifecycle and packaging.

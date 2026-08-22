@@ -1,8 +1,8 @@
-# macOS event/focus notes for the first experiment
+# macOS event/focus notes
 
-These are implementation conclusions, not a claim that the YouTube acceptance
-test has passed. The decisive dispatch behavior still needs the manual test in
-`README.md`.
+The decisive Chrome/YouTube acceptance test passed with the default `both`
+activation strategy and a zero-millisecond settle delay. Repeated use also
+continued successfully across many sleep/wake cycles.
 
 ## Why return the original event first
 
@@ -12,10 +12,21 @@ before the annotated-session stage, where events have been annotated for a
 specific application. `jfc` therefore uses a head-insert session tap, performs
 focus work synchronously on mouse-down, and returns the incoming object.
 
-The remaining unknown is AppKit's timing: Apple warns that application
-activation can lag. The `--settle-ms` option tests whether briefly holding the
-original event is sufficient. It is intentionally capped at 100 ms because slow
-event-tap callbacks can be disabled by timeout.
+On the tested macOS system, the synchronous AX/AppKit focus work completes soon
+enough for downstream dispatch to send the returned event to the newly active
+application. The CLI retains `--settle-ms` as an experiment, but the product
+uses zero delay. It is intentionally capped at 100 ms because slow event-tap
+callbacks can be disabled by timeout.
+
+## Permission result
+
+The filtering event tap and AX focus path work with Accessibility granted while
+Input Monitoring reports `NOT GRANTED`. The application therefore requests
+Accessibility only. Asking for Input Monitoring would add an unnecessary
+privacy permission to the onboarding flow.
+
+The app bundle is a separate TCC identity from Terminal and the CLI executable,
+so `JFC.app` must receive its own Accessibility grant.
 
 ## Window resolution and focus
 
@@ -50,9 +61,23 @@ the physical-click test measures.
 - Unsupported/protected apps: AX can report `notImplemented`, `cannotComplete`,
   or missing attributes. The safe behavior is pass-through.
 - Secure Event Input: Apple's public contract describes protection of keyboard
-  input. `jfc` observes no keyboard event types. TCC Accessibility/Input
-  Monitoring permissions and application-specific AX restrictions are the
-  practical blockers for this mouse-only prototype.
+  input. JFC observes no keyboard event types. Accessibility permission and
+  application-specific AX restrictions are the practical blockers for this
+  mouse-only utility.
+
+## App lifecycle
+
+Deliberate launches register as a normal application, ensuring the control
+window opens in front and remains reachable through the Dock and Cmd-Tab. When
+the window closes, the application changes to accessory mode while leaving the
+event tap running. Reopening the app restores regular-app presence and presents
+the same window through the normal AppKit reopen callback. There is no menu-bar
+item.
+
+Start at Login uses `SMAppService.mainApp`, available on macOS 13 and later. JFC
+continues to target macOS 14 and later. Login launches remain hidden; deliberate
+activation from Finder, Spotlight, or another launcher presents the control
+window.
 
 ## Primary references
 
@@ -68,3 +93,7 @@ the physical-click test measures.
   <https://developer.apple.com/documentation/applicationservices/kaxfrontmostattribute>
 - Apple, on-screen window ordering:
   <https://developer.apple.com/documentation/coregraphics/cgwindowlistoption/optiononscreenonly>
+- Apple, `LSUIElement` agent applications:
+  <https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement>
+- Apple, main-app login registration:
+  <https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp>

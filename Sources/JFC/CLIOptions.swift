@@ -1,10 +1,5 @@
 import Foundation
-
-enum ActivationStrategy: String, CaseIterable {
-  case ax
-  case appkit
-  case both
-}
+import JFCCore
 
 struct CLIOptions {
   var activationStrategy: ActivationStrategy = .both
@@ -12,6 +7,16 @@ struct CLIOptions {
   var promptForPermissions = true
   var settleMilliseconds: UInt32 = 0
   var verbose = false
+
+  var eventTapConfiguration: EventTapConfiguration {
+    EventTapConfiguration(
+      activationStrategy: activationStrategy,
+      observeOnly: observeOnly,
+      settleMilliseconds: settleMilliseconds,
+      verbose: verbose,
+      loggingEnabled: true
+    )
+  }
 
   static let usage = """
     jfc — first-click focus experiment for macOS
