@@ -61,8 +61,8 @@ JFC_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "$JFC_APP_BUNDLE/Contents/Info.plist")
 JFC_DMG_PATH="$JFC_REPOSITORY_ROOT/dist/JFC-$JFC_VERSION.dmg"
 
-/usr/bin/lipo -verify_arch arm64 x86_64 "$JFC_APP_BUNDLE/Contents/MacOS/JFC"
-/usr/bin/lipo -verify_arch arm64 x86_64 "$JFC_LOGIN_ITEM_BUNDLE/Contents/MacOS/JFCLoginItem"
+/usr/bin/lipo "$JFC_APP_BUNDLE/Contents/MacOS/JFC" -verify_arch arm64 x86_64
+/usr/bin/lipo "$JFC_LOGIN_ITEM_BUNDLE/Contents/MacOS/JFCLoginItem" -verify_arch arm64 x86_64
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$JFC_APP_BUNDLE"
 
 if [ -n "$JFC_EXPECTED_TEAM_ID" ]; then
