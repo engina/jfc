@@ -67,7 +67,7 @@ if [ "$JFC_DMG_STYLE" = "1" ] && [ -f "$JFC_DMG_BACKGROUND" ]; then
     "$JFC_DMG_READ_WRITE"
   JFC_DMG_ATTACHED=1
 
-  /usr/bin/osascript "$JFC_REPOSITORY_ROOT/Scripts/style-dmg.applescript" \
+  /usr/bin/osascript "$JFC_REPOSITORY_ROOT/scripts/style-dmg.applescript" \
     "$JFC_DMG_MOUNT" background.png
   JFC_DMG_METADATA_ATTEMPTS=0
   while [ ! -s "$JFC_DMG_MOUNT/.DS_Store" ] && [ "$JFC_DMG_METADATA_ATTEMPTS" -lt 10 ]; do

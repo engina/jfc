@@ -6,7 +6,7 @@ JFC_CONFIGURATION="${1:-debug}"
 case "$JFC_CONFIGURATION" in
   debug|release) ;;
   *)
-    echo "usage: Scripts/build-app.sh [debug|release]" >&2
+    echo "usage: scripts/build-app.sh [debug|release]" >&2
     exit 2
     ;;
 esac
@@ -38,7 +38,7 @@ JFC_LOGIN_ITEM_EXECUTABLE="$JFC_BIN_PATH/JFCLoginItem"
 
 swift build "$@" --product JFCApp
 swift build "$@" --product JFCLoginItem
-"$JFC_REPOSITORY_ROOT/Scripts/build-icon.sh" \
+"$JFC_REPOSITORY_ROOT/scripts/build-icon.sh" \
   "$JFC_REPOSITORY_ROOT/Resources/JFC-AppIcon.png" "$JFC_ICON"
 
 rm -rf "$JFC_APP_BUNDLE"

@@ -87,6 +87,23 @@ foreground application, and restored one control window. The helper exited
 cleanly in both registration and simulation tests. An actual logout/login or
 reboot remains the final manual acceptance test.
 
+## Reproducing the event-path experiment
+
+Stop the app first so only one event tap is active, then run the preserved CLI:
+
+```sh
+swift build
+.build/debug/jfc
+```
+
+For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
+
+Focus VS Code, then click Play/Pause in an inactive Chrome/YouTube window. The
+control should operate on that first physical click. Alternate between the two
+apps for at least 20 clicks and check for lost or doubled clicks, play/pause
+reversals, drag regressions, and noticeable delay. Synthetic input does not
+substitute for this test.
+
 ## Direct distribution
 
 JFC is distributed outside the Mac App Store as a compressed UDIF disk image.

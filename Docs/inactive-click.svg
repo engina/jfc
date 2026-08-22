@@ -1,0 +1,596 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="30 32 1540 656" role="img">
+  <title>Comparing a swallowed click with a successful click</title>
+  <desc>
+    Code is typed in an active editor window beside a playing video. The first
+    click only activates the video window. JFC is launched, then the repeated
+    click activates the window and pauses playback.
+  </desc>
+
+  <defs>
+    <linearGradient id="video" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#253a58"/>
+      <stop offset="1" stop-color="#111c2f"/>
+    </linearGradient>
+    <filter id="active-glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="screen-clip">
+      <rect x="48" y="50" width="1504" height="620" rx="18"/>
+    </clipPath>
+    <clipPath id="video-clip">
+      <rect x="830" y="142" width="676" height="494" rx="5"/>
+    </clipPath>
+
+    <style>
+      .loop-scene {
+        opacity: 1;
+        animation: scene-loop 18s linear infinite;
+      }
+
+      .left-focus {
+        opacity: 1;
+        animation: left-focus 18s ease-in-out infinite;
+      }
+
+      .right-focus {
+        opacity: .12;
+        animation: right-focus 18s ease-in-out infinite;
+      }
+
+      .left-dim {
+        opacity: 0;
+        animation: left-dim 18s ease-in-out infinite;
+      }
+
+      .right-dim {
+        opacity: .15;
+        animation: right-dim 18s ease-in-out infinite;
+      }
+
+      .right-window {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: right-window-buzz 18s linear infinite;
+      }
+
+      .swallowed-error {
+        opacity: 0;
+        animation: swallowed-error 18s ease-out infinite;
+      }
+
+      .operation-success {
+        opacity: 0;
+        animation: operation-success 18s ease-out infinite;
+      }
+
+      .pointer {
+        transform: translate(652px, 378px);
+        animation: pointer-move 18s cubic-bezier(.45, 0, .2, 1) infinite;
+      }
+
+      .pause-hover {
+        opacity: 0;
+        animation: pause-hover 18s ease-in-out infinite;
+      }
+
+      .click-ring {
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: click-ring 18s ease-out infinite;
+      }
+
+      .talking-head {
+        animation:
+          head-bob 1.4s ease-in-out infinite,
+          playing-head 18s step-end infinite;
+      }
+
+      .paused-head {
+        opacity: 0;
+        animation: paused-head 18s step-end infinite;
+      }
+
+      .mouth {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: talking .36s ease-in-out infinite alternate;
+      }
+
+      .blink {
+        animation: blinking 3.2s linear infinite;
+      }
+
+      .video-orb-a,
+      .video-orb-b,
+      .video-wave {
+        animation-duration: 18s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: infinite;
+      }
+
+      .video-orb-a { animation-name: video-orb-a; }
+      .video-orb-b { animation-name: video-orb-b; }
+      .video-wave { animation-name: video-wave; }
+
+      .progress {
+        transform: scaleX(.18);
+        transform-box: fill-box;
+        transform-origin: left center;
+        animation: playback 18s linear infinite;
+      }
+
+      .pause-icon {
+        animation: pause-icon 18s step-end infinite;
+      }
+
+      .play-icon {
+        opacity: 0;
+        animation: play-icon 18s step-end infinite;
+      }
+
+      .failed-control {
+        opacity: 0;
+        animation: failed-control 18s ease-out infinite;
+      }
+
+      .successful-control {
+        opacity: 0;
+        animation: successful-control 18s ease-out infinite;
+      }
+
+      .caret-active {
+        animation: caret-active 18s linear infinite;
+      }
+
+      .caret-blink {
+        animation: caret-blink .72s steps(1, end) infinite;
+      }
+
+      .launch-transition {
+        opacity: 0;
+        animation: launch-transition 18s ease-in-out infinite;
+      }
+
+      .launch-pointer {
+        transform: translate(680px, 430px);
+        animation: launch-pointer 18s cubic-bezier(.45, 0, .2, 1) infinite;
+      }
+
+      .launch-click-ring {
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: launch-click-ring 18s ease-out infinite;
+      }
+
+      .launch-icon {
+        transform-box: fill-box;
+        animation: launch-icon-bounce 18s linear infinite;
+      }
+
+      @keyframes scene-loop {
+        0%, 40.889% { opacity: 1; }
+        43.111%, 53.333% { opacity: 0; }
+        55.556%, 96.444% { opacity: 1; }
+        98.667% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes left-focus {
+        0%, 24% { opacity: 1; }
+        25.778%, 41.778% { opacity: .12; }
+        53.333%, 79.556% { opacity: 1; }
+        81.333%, 97.333% { opacity: .12; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes right-focus {
+        0%, 24% { opacity: .12; }
+        25.778%, 41.778% { opacity: 1; }
+        53.333%, 79.556% { opacity: .12; }
+        81.333%, 97.333% { opacity: 1; }
+        100% { opacity: .12; }
+      }
+
+      @keyframes left-dim {
+        0%, 24% { opacity: 0; }
+        25.778%, 41.778% { opacity: .15; }
+        53.333%, 79.556% { opacity: 0; }
+        81.333%, 97.333% { opacity: .15; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes right-dim {
+        0%, 24% { opacity: .15; }
+        25.778%, 41.778% { opacity: 0; }
+        53.333%, 79.556% { opacity: .15; }
+        81.333%, 97.333% { opacity: 0; }
+        100% { opacity: .15; }
+      }
+
+      @keyframes right-window-buzz {
+        0%, 23.911% { transform: translateX(0); }
+        24.178% { transform: translateX(-8px); }
+        24.444% { transform: translateX(7px); }
+        24.711% { transform: translateX(-5px); }
+        24.978% { transform: translateX(4px); }
+        25.333% { transform: translateX(-2px); }
+        25.778%, 100% { transform: translateX(0); }
+      }
+
+      @keyframes swallowed-error {
+        0%, 23.911% { opacity: 0; }
+        24.178%, 25.333% { opacity: 1; }
+        26.667%, 100% { opacity: 0; }
+      }
+
+      @keyframes operation-success {
+        0%, 79.467% { opacity: 0; }
+        79.733%, 84% { opacity: 1; }
+        94.667% { opacity: .55; }
+        98.667%, 100% { opacity: 0; }
+      }
+
+      @keyframes pointer-move {
+        0%, 20.889% { transform: translate(652px, 378px) scale(1); }
+        23.111% { transform: translate(861px, 615px) scale(1); }
+        24% { transform: translate(861px, 615px) scale(.88); }
+        24.889%, 41.778% { transform: translate(861px, 615px) scale(1); }
+        53.333%, 76.444% { transform: translate(652px, 378px) scale(1); }
+        78.667% { transform: translate(861px, 615px) scale(1); }
+        79.556% { transform: translate(861px, 615px) scale(.88); }
+        80.444%, 97.333% { transform: translate(861px, 615px) scale(1); }
+        100% { transform: translate(652px, 378px) scale(1); }
+      }
+
+      @keyframes pause-hover {
+        0%, 20.889% { opacity: 0; }
+        22.667%, 41.778% { opacity: .16; }
+        53.333%, 76.444% { opacity: 0; }
+        78.222%, 97.333% { opacity: .16; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes click-ring {
+        0%, 23.111% { opacity: 0; transform: scale(.25); }
+        24% { opacity: .85; transform: scale(.5); }
+        26.667% { opacity: 0; transform: scale(2.1); }
+        53.333%, 78.667% { opacity: 0; transform: scale(.25); }
+        79.556% { opacity: .85; transform: scale(.5); }
+        82.222%, 100% { opacity: 0; transform: scale(2.1); }
+      }
+
+      @keyframes head-bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+
+      @keyframes talking {
+        from { transform: scaleY(.45); }
+        to { transform: scaleY(1); }
+      }
+
+      @keyframes blinking {
+        0%, 45%, 49%, 100% { opacity: 1; }
+        47% { opacity: 0; }
+      }
+
+      @keyframes video-orb-a {
+        0% { transform: translate(0); }
+        11.111% { transform: translate(38px, -20px); }
+        22.222% { transform: translate(0); }
+        33.333% { transform: translate(-30px, 18px); }
+        44.444% { transform: translate(0); }
+        55.556% { transform: translate(38px, -20px); }
+        66.667% { transform: translate(0); }
+        77.778% { transform: translate(-30px, 18px); }
+        79.733%, 100% { transform: translate(-26px, 15px); }
+      }
+
+      @keyframes video-orb-b {
+        0% { transform: translate(0); }
+        11.111% { transform: translate(-32px, 22px); }
+        22.222% { transform: translate(0); }
+        33.333% { transform: translate(36px, -18px); }
+        44.444% { transform: translate(0); }
+        55.556% { transform: translate(-32px, 22px); }
+        66.667% { transform: translate(0); }
+        77.778% { transform: translate(36px, -18px); }
+        79.733%, 100% { transform: translate(31px, -16px); }
+      }
+
+      @keyframes video-wave {
+        0% { transform: translateX(0); }
+        22.222% { transform: translateX(28px); }
+        44.444% { transform: translateX(0); }
+        66.667% { transform: translateX(-28px); }
+        79.733%, 100% { transform: translateX(5px); }
+      }
+
+      @keyframes playback {
+        0% { transform: scaleX(.18); }
+        44.356% { transform: scaleX(.82); }
+        53.333%, 55.556% { transform: scaleX(.18); }
+        79.556% { transform: scaleX(.526); }
+        99.9% { transform: scaleX(.526); }
+        100% { transform: scaleX(.18); }
+      }
+
+      @keyframes playing-head {
+        0%, 79.467% { opacity: 1; }
+        79.733%, 99.9% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes paused-head {
+        0%, 79.467% { opacity: 0; }
+        79.733%, 99.9% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes pause-icon {
+        0%, 79.467% { opacity: 1; }
+        79.733%, 99.9% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes play-icon {
+        0%, 79.467% { opacity: 0; }
+        79.733%, 99.9% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes failed-control {
+        0%, 23.911% { opacity: 0; }
+        24.178% { opacity: 1; }
+        40.8%, 100% { opacity: 0; }
+      }
+
+      @keyframes successful-control {
+        0%, 79.467% { opacity: 0; }
+        79.733% { opacity: 1; }
+        96.356%, 100% { opacity: 0; }
+      }
+
+      @keyframes caret-blink {
+        0%, 49% { opacity: 1; }
+        50%, 100% { opacity: 0; }
+      }
+
+      @keyframes caret-active {
+        0%, 24% { opacity: 1; }
+        25.778%, 53.222% { opacity: 0; }
+        53.333%, 79.556% { opacity: 1; }
+        81.333%, 100% { opacity: 0; }
+      }
+
+      @keyframes launch-transition {
+        0%, 42.222% { opacity: 0; }
+        44.444%, 53.333% { opacity: 1; }
+        55.556%, 100% { opacity: 0; }
+      }
+
+      @keyframes launch-pointer {
+        0%, 44.444% { transform: translate(680px, 430px) scale(1); }
+        48.333% { transform: translate(750px, 310px) scale(1); }
+        49.444% { transform: translate(750px, 310px) scale(.88); }
+        50.556%, 100% { transform: translate(750px, 310px) scale(1); }
+      }
+
+      @keyframes launch-click-ring {
+        0%, 49.222% { opacity: 0; transform: scale(.25); }
+        49.444% { opacity: .9; transform: scale(.5); }
+        53.333%, 100% { opacity: 0; transform: scale(2.1); }
+      }
+
+      @keyframes launch-icon-bounce {
+        0%, 49.444% {
+          transform: translateY(0);
+          animation-timing-function: cubic-bezier(.1, .7, .3, 1);
+        }
+        50.833% {
+          transform: translateY(-30px);
+          animation-timing-function: cubic-bezier(.7, 0, .9, .3);
+        }
+        52.222%, 100% { transform: translateY(0); }
+      }
+    </style>
+  </defs>
+
+  <rect width="1600" height="720" fill="#0d1016"/>
+
+  <g class="loop-scene">
+    <rect x="30" y="32" width="1540" height="656" rx="28" fill="#0d1016"/>
+    <rect x="48" y="50" width="1504" height="620" rx="18" fill="#131720"/>
+
+    <g clip-path="url(#screen-clip)">
+      <!-- Left editor window -->
+      <rect x="74" y="78" width="716" height="578" rx="9" fill="#181c24" stroke="#404755" stroke-width="2"/>
+      <path d="M83 78h698a9 9 0 0 1 9 9v35H74V87a9 9 0 0 1 9-9Z" fill="#2a303b"/>
+      <circle cx="96" cy="100" r="6" fill="#ff6258"/>
+      <circle cx="117" cy="100" r="6" fill="#ffbd2e"/>
+      <rect x="352" y="95" width="160" height="9" rx="4.5" fill="#77808f" opacity=".48"/>
+
+      <rect x="74" y="122" width="46" height="534" fill="#151922"/>
+      <rect x="120" y="122" width="180" height="534" fill="#222731"/>
+      <rect x="300" y="122" width="490" height="534" fill="#171b23"/>
+      <rect x="119" y="122" width="1" height="534" fill="#3b424f"/>
+      <rect x="299" y="122" width="1" height="534" fill="#3b424f"/>
+
+      <!-- Editor activity rail -->
+      <rect x="89" y="145" width="16" height="16" rx="3" fill="#8f99aa"/>
+      <path d="M90 183h14M90 188h10M90 193h14" fill="none" stroke="#687283" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="97" cy="224" r="8" fill="none" stroke="#687283" stroke-width="3"/>
+      <path d="M91 256l6-6 6 6-6 6Z" fill="none" stroke="#687283" stroke-width="3" stroke-linejoin="round"/>
+
+      <!-- Editor sidebar skeletons -->
+      <rect x="140" y="145" width="74" height="8" rx="4" fill="#9ca6b6" opacity=".75"/>
+      <rect x="143" y="175" width="118" height="8" rx="4" fill="#6f798a"/>
+      <rect x="156" y="203" width="83" height="8" rx="4" fill="#6f798a"/>
+      <rect x="156" y="231" width="113" height="8" rx="4" fill="#6f798a"/>
+      <rect x="156" y="270" width="92" height="8" rx="4" fill="#687283"/>
+      <rect x="156" y="296" width="71" height="8" rx="4" fill="#687283"/>
+      <rect x="156" y="322" width="104" height="8" rx="4" fill="#687283"/>
+      <rect x="156" y="348" width="83" height="8" rx="4" fill="#687283"/>
+      <rect x="156" y="374" width="112" height="8" rx="4" fill="#687283"/>
+
+      <!-- Editor tabs and panes -->
+      <rect x="300" y="122" width="490" height="34" fill="#20252f"/>
+      <rect x="320" y="135" width="94" height="8" rx="4" fill="#8b95a5" opacity=".72"/>
+      <rect x="300" y="154" width="490" height="2" fill="#65b7ff" opacity=".72"/>
+      <rect x="316" y="174" width="30" height="8" rx="4" fill="#566071" opacity=".7"/>
+      <rect x="753" y="174" width="18" height="8" rx="4" fill="#566071" opacity=".5"/>
+
+      <!-- Growing code skeletons -->
+      <g opacity=".96">
+        <rect x="330" y="211" width="0" height="9" rx="4.5" fill="#b58cf3">
+          <animate attributeName="width" dur="18s" repeatCount="indefinite" keyTimes="0;0.057778;0.088889;0.5333;0.5334;0.613333;0.644444;1" values="0;0;126;126;0;0;126;126"/>
+        </rect>
+
+        <rect x="350" y="243" width="0" height="9" rx="4.5" fill="#7ed6a5">
+          <animate attributeName="width" dur="18s" repeatCount="indefinite" keyTimes="0;0.088889;0.133333;0.5333;0.5334;0.644444;0.688889;1" values="0;0;214;214;0;0;214;214"/>
+        </rect>
+
+        <rect x="370" y="275" width="0" height="9" rx="4.5" fill="#79c7ff">
+          <animate attributeName="width" dur="18s" repeatCount="indefinite" keyTimes="0;0.124444;0.168889;0.5333;0.5334;0.68;0.724444;1" values="0;0;168;168;0;0;168;168"/>
+        </rect>
+
+        <rect x="370" y="307" width="0" height="9" rx="4.5" fill="#efb86d">
+          <animate attributeName="width" dur="18s" repeatCount="indefinite" keyTimes="0;0.16;0.208889;0.5333;0.5334;0.715556;0.764444;1" values="0;0;226;226;0;0;226;226"/>
+        </rect>
+
+        <rect x="350" y="339" width="116" height="9" rx="4.5" fill="#6d7686"/>
+        <rect x="370" y="371" width="208" height="9" rx="4.5" fill="#6d7686" opacity=".86"/>
+        <rect x="370" y="403" width="152" height="9" rx="4.5" fill="#6d7686" opacity=".72"/>
+        <rect x="350" y="435" width="250" height="9" rx="4.5" fill="#6d7686" opacity=".62"/>
+        <rect x="330" y="467" width="92" height="9" rx="4.5" fill="#6d7686" opacity=".54"/>
+      </g>
+
+      <g class="caret-active">
+        <rect class="caret-blink" x="330" y="208" width="2" height="15" rx="1" fill="#dce8f8">
+          <animate
+            attributeName="x"
+            dur="18s"
+            repeatCount="indefinite"
+            keyTimes="0;0.057778;0.088889;0.088933;0.124444;0.124489;0.16;0.160044;0.208889;0.5333;0.5334;0.613333;0.644444;0.644489;0.68;0.680044;0.715556;0.7156;0.764444;1"
+            values="330;330;456;350;521;370;504;370;596;596;330;330;456;350;521;370;504;370;596;596"
+          />
+          <animate
+            attributeName="y"
+            dur="18s"
+            repeatCount="indefinite"
+            keyTimes="0;0.088889;0.088933;0.124444;0.124489;0.16;0.160044;0.5333;0.5334;0.644444;0.644489;0.68;0.680044;0.715556;0.7156;1"
+            values="208;208;240;240;272;272;304;304;208;208;240;240;272;272;304;304"
+          />
+        </rect>
+      </g>
+
+      <!-- Editor bottom pane -->
+      <rect x="300" y="512" width="490" height="144" fill="#1d222b"/>
+      <rect x="300" y="512" width="490" height="1" fill="#3b424f"/>
+      <rect x="320" y="530" width="58" height="8" rx="4" fill="#8d97a7" opacity=".7"/>
+      <rect x="392" y="530" width="70" height="8" rx="4" fill="#596374"/>
+      <rect x="320" y="560" width="248" height="8" rx="4" fill="#667081" opacity=".8"/>
+      <rect x="320" y="586" width="184" height="8" rx="4" fill="#667081" opacity=".65"/>
+      <rect x="320" y="612" width="222" height="8" rx="4" fill="#667081" opacity=".5"/>
+
+      <!-- Right video window -->
+      <g class="right-window">
+      <rect x="810" y="78" width="716" height="578" rx="9" fill="#181c24" stroke="#404755" stroke-width="2"/>
+      <path d="M819 78h698a9 9 0 0 1 9 9v35H810V87a9 9 0 0 1 9-9Z" fill="#2a303b"/>
+      <circle cx="832" cy="100" r="6" fill="#ff6258"/>
+      <circle cx="853" cy="100" r="6" fill="#ffbd2e"/>
+      <rect x="1084" y="95" width="168" height="9" rx="4.5" fill="#77808f" opacity=".48"/>
+
+      <rect x="830" y="142" width="676" height="494" rx="5" fill="url(#video)"/>
+      <g clip-path="url(#video-clip)">
+        <circle class="video-orb-a" cx="918" cy="228" r="112" fill="#238b9d" opacity=".58"/>
+        <circle class="video-orb-b" cx="1440" cy="504" r="170" fill="#6852a3" opacity=".56"/>
+        <path class="video-wave" d="M818 510c120-72 220-90 338-38s214 50 362-32v196H818Z" fill="#08152a" opacity=".96"/>
+
+        <!-- Speaker motion is replaced by a still frame when playback pauses. -->
+        <g class="talking-head">
+          <path d="M1053 532c14-92 70-137 139-137s125 45 139 137Z" fill="#557ba3"/>
+          <path d="M1171 389h42v57h-42Z" fill="#d49e7c"/>
+          <ellipse cx="1192" cy="317" rx="76" ry="91" fill="#e5b08d"/>
+          <path d="M1119 307c-5-68 29-112 82-112 58 0 91 45 72 112-14-34-39-55-72-60-27 30-52 48-82 60Z" fill="#283247"/>
+          <path d="M1121 308c-13 1-21 13-18 29 3 15 13 24 26 21Z" fill="#dba583"/>
+          <path d="M1263 308c13 1 21 13 18 29-3 15-13 24-26 21Z" fill="#dba583"/>
+          <g class="blink" fill="#263044">
+            <ellipse cx="1163" cy="321" rx="6" ry="5"/>
+            <ellipse cx="1222" cy="321" rx="6" ry="5"/>
+          </g>
+          <path d="M1188 326l-5 24h13" fill="none" stroke="#bf8467" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <ellipse class="mouth" cx="1192" cy="371" rx="18" ry="8" fill="#8d4b53"/>
+        </g>
+
+        <g class="paused-head">
+          <path d="M1053 532c14-92 70-137 139-137s125 45 139 137Z" fill="#557ba3"/>
+          <path d="M1171 389h42v57h-42Z" fill="#d49e7c"/>
+          <ellipse cx="1192" cy="317" rx="76" ry="91" fill="#e5b08d"/>
+          <path d="M1119 307c-5-68 29-112 82-112 58 0 91 45 72 112-14-34-39-55-72-60-27 30-52 48-82 60Z" fill="#283247"/>
+          <path d="M1121 308c-13 1-21 13-18 29 3 15 13 24 26 21Z" fill="#dba583"/>
+          <path d="M1263 308c13 1 21 13 18 29-3 15-13 24-26 21Z" fill="#dba583"/>
+          <g fill="#263044">
+            <ellipse cx="1163" cy="321" rx="6" ry="5"/>
+            <ellipse cx="1222" cy="321" rx="6" ry="5"/>
+          </g>
+          <path d="M1188 326l-5 24h13" fill="none" stroke="#bf8467" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <ellipse cx="1192" cy="371" rx="18" ry="4" fill="#8d4b53"/>
+        </g>
+
+        <!-- Player controls -->
+        <rect x="830" y="574" width="676" height="62" fill="#080d16" opacity=".82"/>
+        <rect x="850" y="588" width="636" height="4" rx="2" fill="#667184" opacity=".55"/>
+        <rect class="progress" x="850" y="588" width="636" height="4" rx="2" fill="#62b7ff"/>
+        <rect class="pause-hover" x="849" y="601" width="35" height="30" rx="6" fill="#f3f6fb"/>
+        <g class="pause-icon">
+          <rect x="858" y="607" width="5" height="17" rx="2" fill="#f3f6fb"/>
+          <rect x="869" y="607" width="5" height="17" rx="2" fill="#f3f6fb"/>
+        </g>
+        <path class="play-icon" d="M858 605l18 10.5-18 10.5Z" fill="#f3f6fb"/>
+        <rect class="failed-control" x="849" y="601" width="35" height="30" rx="6" fill="none" stroke="#ff4d5a" stroke-width="3" filter="url(#active-glow)"/>
+        <rect class="successful-control" x="849" y="601" width="35" height="30" rx="6" fill="none" stroke="#55d98a" stroke-width="3" filter="url(#active-glow)"/>
+        <path d="M894 616h8l8-7v14l-8-7h-8Z" fill="#d9dee8" opacity=".82"/>
+        <path d="M914 611c5 3 5 8 0 11" fill="none" stroke="#d9dee8" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+        <rect x="936" y="612" width="58" height="7" rx="3.5" fill="#aab2c0" opacity=".55"/>
+        <rect x="1463" y="609" width="20" height="13" rx="2" fill="none" stroke="#d9dee8" stroke-width="2" opacity=".8"/>
+      </g>
+
+      <rect class="right-dim" x="810" y="78" width="716" height="578" rx="9" fill="#080b11"/>
+      <rect class="right-focus" x="810" y="78" width="716" height="578" rx="9" fill="none" stroke="#65b7ff" stroke-width="3" filter="url(#active-glow)"/>
+      <rect class="swallowed-error" x="810" y="78" width="716" height="578" rx="9" fill="none" stroke="#ff4d5a" stroke-width="5" filter="url(#active-glow)"/>
+      <rect class="operation-success" x="810" y="78" width="716" height="578" rx="9" fill="none" stroke="#55d98a" stroke-width="5" filter="url(#active-glow)"/>
+      </g>
+
+      <!-- Inactive-window veils swap after each click -->
+      <rect class="left-dim" x="74" y="78" width="716" height="578" rx="9" fill="#080b11"/>
+
+      <!-- Active window outline swaps after the click -->
+      <rect class="left-focus" x="74" y="78" width="716" height="578" rx="9" fill="none" stroke="#65b7ff" stroke-width="3" filter="url(#active-glow)"/>
+    </g>
+
+    <circle class="click-ring" cx="861" cy="615" r="20" fill="none" stroke="#78c8ff" stroke-width="4"/>
+
+    <g class="pointer">
+      <path d="M0 0 2 27l7-7 7 15 7-4-7-15h11Z" fill="#f8fafc" stroke="#111722" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <g class="launch-transition">
+    <rect x="30" y="32" width="1540" height="656" rx="28" fill="#0d1016"/>
+    <rect x="48" y="50" width="1504" height="620" rx="18" fill="#131720"/>
+    <g class="launch-icon">
+      <image href="jfc-app-icon.png" xlink:href="jfc-app-icon.png" x="700" y="260" width="200" height="200" preserveAspectRatio="xMidYMid meet"/>
+    </g>
+    <circle class="launch-click-ring" cx="750" cy="310" r="20" fill="none" stroke="#78c8ff" stroke-width="4"/>
+    <g class="launch-pointer">
+      <path d="M0 0 2 27l7-7 7 15 7-4-7-15h11Z" fill="#f8fafc" stroke="#111722" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+  </g>
+</svg>

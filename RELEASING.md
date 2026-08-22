@@ -1,6 +1,6 @@
 # Releasing JFC
 
-`Scripts/release.sh` is the canonical direct-distribution path. It produces a
+`scripts/release.sh` is the canonical direct-distribution path. It produces a
 universal signed DMG, submits it to Apple, staples the accepted ticket, and
 checks the final artifact with Gatekeeper.
 
@@ -22,7 +22,7 @@ checks the final artifact with Gatekeeper.
 
    Fill in the full identity printed above, the developer team ID, and the
    Keychain profile name. These values identify the publisher but are not
-   passwords. `Scripts/release.sh` loads the file itself using `/bin/sh`, so the
+   passwords. `scripts/release.sh` loads the file itself using `/bin/sh`, so the
    command works unchanged from fish, zsh, or bash.
 
 3. At <https://account.apple.com/>, create an app-specific password for
@@ -55,7 +55,7 @@ checks the final artifact with Gatekeeper.
 Release from a clean worktree:
 
 ```sh
-Scripts/release.sh
+scripts/release.sh
 ```
 
 The script performs these operations in order:

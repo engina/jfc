@@ -53,7 +53,7 @@ fi
 
 JFC_CODE_SIGN_IDENTITY="$JFC_SIGNING_IDENTITY" \
 JFC_ARCHITECTURES="$JFC_RELEASE_ARCHITECTURES" \
-  "$JFC_REPOSITORY_ROOT/Scripts/build-app.sh" release
+  "$JFC_REPOSITORY_ROOT/scripts/build-app.sh" release
 
 JFC_APP_BUNDLE="$JFC_REPOSITORY_ROOT/.build/JFC.app"
 JFC_LOGIN_ITEM_BUNDLE="$JFC_APP_BUNDLE/Contents/Library/LoginItems/JFC Login Item.app"
@@ -77,7 +77,7 @@ if [ -n "$JFC_EXPECTED_TEAM_ID" ]; then
 fi
 
 JFC_CODE_SIGN_IDENTITY="$JFC_SIGNING_IDENTITY" \
-  "$JFC_REPOSITORY_ROOT/Scripts/package-dmg.sh" "$JFC_APP_BUNDLE" "$JFC_DMG_PATH"
+  "$JFC_REPOSITORY_ROOT/scripts/package-dmg.sh" "$JFC_APP_BUNDLE" "$JFC_DMG_PATH"
 
 JFC_NOTARY_RESULT=$(/usr/bin/mktemp /tmp/jfc-notary.XXXXXX)
 if ! /usr/bin/xcrun notarytool submit "$JFC_DMG_PATH" \
