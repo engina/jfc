@@ -42,6 +42,8 @@ final class ControlWindowController: NSWindowController, NSWindowDelegate {
     }
     showWindow(nil)
     window.makeKeyAndOrderFront(nil)
+    // Don’t let the secondary GitHub link become the initial focused control.
+    window.makeFirstResponder(nil)
     if forceToFront {
       window.orderFrontRegardless()
     }
