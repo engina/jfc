@@ -92,12 +92,6 @@ struct ControlView: View {
       }
 
       HStack {
-        Button("Quit") {
-          NSApplication.shared.terminate(nil)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-
         Spacer()
 
         Button("Open System Settings") {
@@ -163,9 +157,30 @@ struct ControlView: View {
           title: "JFC",
           detail: statusDetail
         ) {
-          Text(statusTitle)
-            .fontWeight(.medium)
-            .foregroundStyle(model.isRunning ? .green : .secondary)
+          HStack(spacing: 10) {
+            Text(statusTitle)
+              .fontWeight(.medium)
+              .foregroundStyle(model.isRunning ? .green : .secondary)
+
+            Button {
+              if model.isRunning {
+                model.stop()
+              } else {
+                model.start()
+              }
+            } label: {
+              Image(systemName: model.isRunning ? "stop.circle" : "play.circle")
+                .font(.system(size: 17, weight: .medium))
+                .frame(width: 18, height: 18)
+                .padding(4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .opacity(0.72)
+            .help(model.isRunning ? "Stop JFC" : "Start JFC")
+            .accessibilityLabel(model.isRunning ? "Stop JFC" : "Start JFC")
+          }
         }
 
         Divider().padding(.leading, 43)
@@ -219,29 +234,6 @@ struct ControlView: View {
 
       if let errorMessage = model.errorMessage {
         errorBanner(errorMessage)
-      }
-
-      HStack(spacing: 14) {
-        Button(model.isRunning ? "Stop JFC" : "Start JFC") {
-          if model.isRunning {
-            model.stop()
-          } else {
-            model.start()
-          }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-
-        Text("Closing this window leaves JFC running.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-
-        Spacer()
-
-        Button("Quit") {
-          NSApplication.shared.terminate(nil)
-        }
-        .controlSize(.large)
       }
     }
   }
