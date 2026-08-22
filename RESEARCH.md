@@ -111,6 +111,13 @@ acceptance. The release script validates the ticket and asks Gatekeeper to asses
 the final DMG. A Developer ID Installer certificate is unnecessary because JFC
 does not ship an installer package.
 
+The complete path has been exercised on the distributable artifact: Apple's
+notary service returned `Accepted`, `stapler validate` succeeded, `hdiutil`
+verified the image, and Gatekeeper reported `accepted` with source
+`Notarized Developer ID`. See `RELEASING.md` for the reproducible operator
+procedure. The DMG must not be changed after stapling; rebuilding or modifying
+it requires a new notarization submission.
+
 ## Primary references
 
 - Apple, `CGEventTapCreate` and event-tap stages:
@@ -136,5 +143,9 @@ does not ship an installer package.
   <https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp>
 - Apple, notarizing macOS software before distribution:
   <https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution>
+- Apple, customizing the notarization workflow:
+  <https://developer.apple.com/documentation/security/customizing-the-notarization-workflow>
+- Apple, creating distribution-signed code for the Mac:
+  <https://developer.apple.com/documentation/xcode/creating-distribution-signed-code-for-the-mac>
 - Apple, Developer ID certificates:
   <https://developer.apple.com/help/account/certificates/create-developer-id-certificates>

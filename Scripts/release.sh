@@ -3,7 +3,15 @@
 set -eu
 
 JFC_REPOSITORY_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+JFC_LOCAL_ENV="$JFC_REPOSITORY_ROOT/.env.local"
+if [ -f "$JFC_LOCAL_ENV" ]; then
+  set -a
+  . "$JFC_LOCAL_ENV"
+  set +a
+fi
+
 JFC_SIGNING_IDENTITY="${JFC_CODE_SIGN_IDENTITY:-}"
+JFC_EXPECTED_TEAM_ID="${JFC_DEVELOPER_TEAM_ID:-}"
 JFC_NOTARY_KEYCHAIN_PROFILE="${JFC_NOTARY_PROFILE:-JFC-notary}"
 JFC_RELEASE_ARCHITECTURES="${JFC_ARCHITECTURES:-arm64 x86_64}"
 JFC_ALLOW_DIRTY_WORKTREE="${JFC_ALLOW_DIRTY:-0}"
@@ -56,6 +64,17 @@ JFC_DMG_PATH="$JFC_REPOSITORY_ROOT/dist/JFC-$JFC_VERSION.dmg"
 /usr/bin/lipo -verify_arch arm64 x86_64 "$JFC_APP_BUNDLE/Contents/MacOS/JFC"
 /usr/bin/lipo -verify_arch arm64 x86_64 "$JFC_LOGIN_ITEM_BUNDLE/Contents/MacOS/JFCLoginItem"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$JFC_APP_BUNDLE"
+
+if [ -n "$JFC_EXPECTED_TEAM_ID" ]; then
+  JFC_SIGNED_TEAM_ID=$(
+    /usr/bin/codesign -d --verbose=4 "$JFC_APP_BUNDLE" 2>&1 \
+      | /usr/bin/sed -n 's/^TeamIdentifier=//p'
+  )
+  if [ "$JFC_SIGNED_TEAM_ID" != "$JFC_EXPECTED_TEAM_ID" ]; then
+    echo "Signed app team ID does not match JFC_DEVELOPER_TEAM_ID." >&2
+    exit 1
+  fi
+fi
 
 JFC_CODE_SIGN_IDENTITY="$JFC_SIGNING_IDENTITY" \
   "$JFC_REPOSITORY_ROOT/Scripts/package-dmg.sh" "$JFC_APP_BUNDLE" "$JFC_DMG_PATH"

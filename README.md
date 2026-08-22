@@ -29,7 +29,8 @@ permission is granted, the same window provides:
 
 Closing the window leaves JFC running. Open `JFC.app` again from Finder,
 Spotlight, or another launcher to bring the window and its temporary Dock
-presence back.
+presence back. **Quit** is deliberately different: it terminates the process
+that owns the event tap, so JFC remains stopped until it is launched again.
 
 The small GitHub mark in the control window links to
 <https://github.com/engina/jfc>. The bundled black and white marks come from
@@ -56,33 +57,17 @@ Apple notarization as described below.
 
 ## Build a distributable DMG
 
-Direct distribution requires a valid **Developer ID Application** certificate
-with its private key in the login Keychain. A Developer ID Installer certificate
-is not needed because JFC ships in a disk image rather than an installer package.
-
-Store notarization credentials once in the Keychain. `notarytool` prompts
-securely for the app-specific password when it is omitted:
+After the one-time certificate, `.env.local`, and Keychain setup documented in
+[`RELEASING.md`](RELEASING.md), a complete release is one command:
 
 ```sh
-xcrun notarytool store-credentials "JFC-notary" \
-  --apple-id "you@example.com" \
-  --team-id "YOURTEAMID"
+Scripts/release.sh
 ```
 
-Then build the release using the full identity name printed by
-`security find-identity -v -p codesigning`:
-
-```sh
-JFC_CODE_SIGN_IDENTITY="Developer ID Application: Your Name (YOURTEAMID)" \
-  Scripts/release.sh
-```
-
-The release script builds universal Apple silicon and Intel binaries, enables
-Hardened Runtime, adds secure timestamps, signs the embedded login helper and
-main app inside-out, creates and signs `dist/JFC-<version>.dmg`, submits it with
-`notarytool`, staples the ticket, verifies it with Gatekeeper, and prints its
-SHA-256 checksum. Credentials remain in the Keychain and are never stored in
-the repository.
+It produces a universal Developer ID–signed, Apple-notarized and stapled DMG in
+`dist/`, then verifies the result with Gatekeeper and prints its SHA-256 digest.
+The release guide also documents exactly where local identity data and
+credentials live and how to verify an artifact before distributing it.
 
 `Scripts/package-dmg.sh` can create an unnotarized local DMG independently. Its
 minimal Finder surface contains only `JFC.app` and an Applications shortcut.
