@@ -42,6 +42,10 @@ final class AppState: ObservableObject {
     shouldBeEnabled = defaults.bool(forKey: DefaultsKey.enabled)
     accessibilityGranted = AccessibilityPermission.isTrusted(prompt: false)
     launchAtLoginStatus = Self.loginItemService.status
+    JFCLog.permission(
+      "Initial Accessibility status: \(accessibilityGranted ? "granted" : "not granted")"
+    )
+    JFCLog.login("Initial SAL status: \(describe(launchAtLoginStatus))")
 
     reconcileEventTap()
     refreshTask = Task { @MainActor [weak self] in
@@ -74,6 +78,12 @@ final class AppState: ObservableObject {
     let wasGranted = accessibilityGranted
     accessibilityGranted = AccessibilityPermission.isTrusted(prompt: false)
 
+    if accessibilityGranted != wasGranted {
+      JFCLog.permission(
+        "Accessibility status changed: \(accessibilityGranted ? "granted" : "revoked")"
+      )
+    }
+
     if accessibilityGranted != wasGranted || (shouldBeEnabled && !eventTap.isRunning) {
       reconcileEventTap()
     } else if !accessibilityGranted && eventTap.isRunning {
@@ -87,6 +97,7 @@ final class AppState: ObservableObject {
   }
 
   func start() {
+    JFCLog.lifecycle("Start requested")
     errorMessage = nil
     shouldBeEnabled = true
     defaults.set(true, forKey: DefaultsKey.enabled)
@@ -101,6 +112,7 @@ final class AppState: ObservableObject {
   }
 
   func stop() {
+    JFCLog.lifecycle("Stop requested")
     errorMessage = nil
     shouldBeEnabled = false
     defaults.set(false, forKey: DefaultsKey.enabled)
@@ -109,6 +121,7 @@ final class AppState: ObservableObject {
   }
 
   func setStartsAtLogin(_ enabled: Bool) {
+    JFCLog.login("SAL \(enabled ? "enable" : "disable") requested")
     errorMessage = nil
     let service = Self.loginItemService
 
@@ -116,8 +129,10 @@ final class AppState: ObservableObject {
       if enabled {
         switch service.status {
         case .enabled:
+          JFCLog.login("SAL already enabled")
           break
         case .requiresApproval:
+          JFCLog.login("SAL requires approval; opening Login Items settings")
           SMAppService.openSystemSettingsLoginItems()
         case .notRegistered, .notFound:
           try service.register()
@@ -128,16 +143,22 @@ final class AppState: ObservableObject {
         try service.unregister()
       }
     } catch {
+      let nsError = error as NSError
+      JFCLog.loginError(
+        "SAL update failed: domain=\(nsError.domain) code=\(nsError.code)"
+      )
       errorMessage = "Couldn’t update Start at Login: \(error.localizedDescription)"
     }
 
     launchAtLoginStatus = service.status
+    JFCLog.login("SAL status: \(describe(launchAtLoginStatus))")
     if launchAtLoginStatus == .requiresApproval {
       errorMessage = "Start at Login needs your approval in System Settings."
     }
   }
 
   func openLoginItemsSettings() {
+    JFCLog.login("Opening Login Items settings")
     SMAppService.openSystemSettingsLoginItems()
   }
 
@@ -149,6 +170,16 @@ final class AppState: ObservableObject {
     refreshTask?.cancel()
     refreshTask = nil
     eventTap.stop()
+  }
+
+  private func describe(_ status: SMAppService.Status) -> String {
+    switch status {
+    case .notRegistered: "not registered"
+    case .enabled: "enabled"
+    case .requiresApproval: "requires approval"
+    case .notFound: "not found"
+    @unknown default: "unknown"
+    }
   }
 
   private func reconcileEventTap() {

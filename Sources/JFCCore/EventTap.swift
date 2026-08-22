@@ -91,11 +91,13 @@ public final class EventTap {
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
+      JFCLog.eventTapError("Event tap creation failed")
       throw EventTapStartError.creationFailed
     }
 
     guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
       CFMachPortInvalidate(tap)
+      JFCLog.eventTapError("Event tap run-loop source creation failed")
       throw EventTapStartError.runLoopSourceFailed
     }
 
@@ -105,6 +107,7 @@ public final class EventTap {
     sourceRunLoop = runLoop
     CFRunLoopAddSource(runLoop, source, .commonModes)
     CGEvent.tapEnable(tap: tap, enable: true)
+    JFCLog.eventTap("Event tap started")
   }
 
   public func stop() {
@@ -118,18 +121,22 @@ public final class EventTap {
     self.tap = nil
     runLoopSource = nil
     sourceRunLoop = nil
+    JFCLog.eventTap("Event tap stopped")
   }
 
   public func run() -> Never {
     CFRunLoopRun()
+    JFCLog.eventTapError("Event-tap run loop stopped unexpectedly")
     fatalError("event-tap run loop unexpectedly stopped")
   }
 
   private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+      let reason = type == .tapDisabledByTimeout ? "timeout" : "user input"
+      JFCLog.eventTapError("Event tap disabled by \(reason); re-enabling")
       if configuration.loggingEnabled {
         Log.line(
-          "EVENT TAP DISABLED (\(type == .tapDisabledByTimeout ? "timeout" : "user input")); re-enabling"
+          "EVENT TAP DISABLED (\(reason)); re-enabling"
         )
       }
       if let tap {

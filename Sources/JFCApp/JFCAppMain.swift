@@ -1,4 +1,5 @@
 import AppKit
+import JFCCore
 
 private enum LaunchContext {
   static let loginEnvironmentKey = "JFC_LAUNCHED_AT_LOGIN"
@@ -28,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var installedMainMenu = false
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    JFCLog.lifecycle(
+      LaunchContext.isLoginLaunch
+        ? "Application launched at login" : "Application launched deliberately"
+    )
     let model = AppState()
     self.model = model
     controlWindowController = ControlWindowController(model: model) { [weak self] in
@@ -50,16 +55,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     _ sender: NSApplication,
     hasVisibleWindows flag: Bool
   ) -> Bool {
+    JFCLog.lifecycle("Application reopened deliberately")
     model?.refresh()
     showControlWindow()
     return true
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    JFCLog.lifecycle("Application terminating")
     model?.shutDown()
   }
 
   private func showControlWindow() {
+    JFCLog.lifecycle("Showing control window")
     installMainMenuIfNeeded()
     NSApplication.shared.setActivationPolicy(.regular)
     controlWindowController?.show(forceToFront: true)
@@ -70,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func hideApplicationPresence() {
+    JFCLog.lifecycle("Control window closed; continuing in background")
     NSApplication.shared.setActivationPolicy(.accessory)
   }
 

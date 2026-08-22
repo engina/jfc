@@ -50,6 +50,20 @@ to Terminal or `.build/debug/jfc` does not grant permission to the app bundle.
 The local test bundle is not yet Developer ID signed or notarized. Those steps
 belong to the distribution milestone.
 
+## Diagnostics
+
+JFC writes small, structured lifecycle and health messages to macOS Unified
+Logging. In Console.app, search for:
+
+```text
+subsystem:com.justfuckingclick.JFC
+```
+
+JFC logs permission transitions, event-tap health, application lifecycle, and
+Start at Login outcomes. The packaged app never logs individual clicks, cursor
+positions, target applications, window titles, or controls. Detailed click
+traces remain exclusive to the CLI experiment.
+
 ## CLI experiment
 
 ```sh

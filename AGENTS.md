@@ -49,6 +49,9 @@ event path can be isolated from application-lifecycle and packaging issues.
 - On AX lookup/focus failures, fail open: return the user's event unchanged.
 - Keep event-tap callbacks bounded; recover if macOS disables the tap for a
   timeout or user input.
+- Product Unified Logging must remain state-based and privacy-conscious. Never
+  log individual clicks, cursor positions, target applications, window titles,
+  or controls. Detailed click traces belong only to the explicit CLI experiment.
 
 ## Platform behavior
 

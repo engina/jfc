@@ -16,11 +16,15 @@ public enum AccessibilityPermission {
   }
 
   public static func openSystemSettings() {
+    JFCLog.permission("Opening Accessibility settings")
     guard
       let url = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
       )
-    else { return }
+    else {
+      JFCLog.permissionError("Could not construct Accessibility settings URL")
+      return
+    }
     NSWorkspace.shared.open(url)
   }
 }

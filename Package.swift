@@ -33,6 +33,7 @@ let package = Package(
     ),
     .executableTarget(
       name: "JFCLoginItem",
+      dependencies: ["JFCCore"],
       path: "Sources/JFCLoginItem"
     ),
   ]

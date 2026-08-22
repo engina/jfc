@@ -1,4 +1,5 @@
 import AppKit
+import JFCCore
 
 @main
 enum JFCLoginItemMain {
@@ -15,7 +16,9 @@ enum JFCLoginItemMain {
 @MainActor
 final class LoginItemDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
+    JFCLog.login("Login helper started")
     guard let mainApplicationURL = mainApplicationURL() else {
+      JFCLog.loginError("Login helper could not resolve the main application")
       NSApplication.shared.terminate(nil)
       return
     }
@@ -33,7 +36,12 @@ final class LoginItemDelegate: NSObject, NSApplicationDelegate {
       configuration: configuration
     ) { _, error in
       if let error {
-        NSLog("JFC login item could not launch the main app: %@", error.localizedDescription)
+        let nsError = error as NSError
+        JFCLog.loginError(
+          "Login helper launch failed: domain=\(nsError.domain) code=\(nsError.code)"
+        )
+      } else {
+        JFCLog.login("Login helper launched the main application")
       }
       DispatchQueue.main.async {
         NSApplication.shared.terminate(nil)
