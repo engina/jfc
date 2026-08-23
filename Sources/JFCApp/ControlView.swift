@@ -26,13 +26,8 @@ struct ControlView: View {
         .scaledToFit()
         .frame(width: 52, height: 52)
 
-      VStack(alignment: .leading, spacing: 2) {
-        Text("JFC")
-          .font(.system(size: 25, weight: .bold, design: .rounded))
-        Text("One click should be enough.")
-          .font(.system(size: 14))
-          .foregroundStyle(.secondary)
-      }
+      Text("JFC")
+        .font(.system(size: 25, weight: .bold, design: .rounded))
 
       Spacer()
 

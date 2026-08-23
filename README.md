@@ -4,8 +4,13 @@
 
 <h1 align="center">jfc</h1>
 
-JFC is a tiny native macOS utility that lets one physical click activate an
-inactive app window and operate the control beneath the pointer.
+You have a wide screen or two displays, and you're working with two windows: one
+for coding, the other for a media player—say, YouTube. You want to quickly play
+or pause a video, or navigate to another one, but macOS swallows your first
+click just to activate the media window, forcing you to click again. It gets a
+little annoying every time. Well, no more!
+
+JFC is a minimal app that makes your first click go through.
 
 [Download the latest release](https://github.com/engina/jfc/releases/latest) · macOS 14+
 
