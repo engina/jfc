@@ -18,6 +18,14 @@ JFC is a minimal app that makes your first click go through.
   <img src="Docs/inactive-click.gif" width="800" alt="Without JFC, the first click only activates the video window. With JFC, it also pauses the video.">
 </p>
 
+## Screenshots
+
+<img src="Docs/screenshots/onboarding.png" width="650" alt="JFC onboarding screen requesting Accessibility permission.">
+
+<img src="Docs/screenshots/running.png" width="650" alt="JFC running with Accessibility permission and Start at Login enabled.">
+
+<img src="Docs/screenshots/stopped.png" width="650" alt="JFC stopped with Start at Login disabled.">
+
 ## How it works
 
 On a left mouse-down over inactive app content, JFC:
@@ -31,6 +39,8 @@ in the active app pass through normally, and failures fail open. JFC observes
 no keyboard input and requires Accessibility permission only.
 
 ## Build
+
+For a frictionless experience, use the signed binaries from the latest release.
 
 ```sh
 scripts/build-app.sh
