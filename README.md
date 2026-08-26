@@ -28,15 +28,15 @@ JFC is a minimal app that makes your first click go through.
 
 ## How it works
 
-On a left mouse-down over inactive app content, JFC:
+On a left mouse-down over inactive app or window content, JFC:
 
 1. Resolves the target window with macOS Accessibility.
-2. Focuses the window and activates its application.
+2. Focuses the window and, when needed, activates its application.
 3. Returns the original physical `CGEvent` unchanged.
 
 There is no synthesized click, event reposting, or focus-follows-mouse. Clicks
-in the active app pass through normally, and failures fail open. JFC observes
-no keyboard input and requires Accessibility permission only.
+in the already-focused window pass through normally, and failures fail open.
+JFC observes no keyboard input and requires Accessibility permission only.
 
 ## Build
 

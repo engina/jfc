@@ -34,27 +34,61 @@ struct FocusAttempt {
   let elapsedMilliseconds: Double
 }
 
+enum WindowFocusState {
+  case focused
+  case unfocused
+  case unavailable(String)
+}
+
 final class AccessibilityFocuser {
+  func windowFocusState(_ target: ResolvedTarget) -> WindowFocusState {
+    guard let targetWindow = target.window else {
+      return .unavailable("target window unavailable")
+    }
+
+    let applicationElement = AXUIElementCreateApplication(target.pid)
+    AXUIElementSetMessagingTimeout(applicationElement, 0.1)
+
+    var value: CFTypeRef?
+    let error = AXUIElementCopyAttributeValue(
+      applicationElement,
+      kAXFocusedWindowAttribute as CFString,
+      &value
+    )
+    guard error == .success else {
+      return .unavailable("AX focused-window lookup=\(describe(error))")
+    }
+    guard let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
+      return .unavailable("AX focused-window lookup=invalid value")
+    }
+
+    let focusedWindow = value as! AXUIElement
+    return CFEqual(targetWindow, focusedWindow) ? .focused : .unfocused
+  }
+
+  func focusWindow(_ target: ResolvedTarget, strategy: ActivationStrategy) -> FocusAttempt {
+    let started = DispatchTime.now().uptimeNanoseconds
+    var steps: [String] = []
+
+    if strategy == .ax || strategy == .both {
+      appendWindowFocusSteps(target.window, to: &steps)
+    } else {
+      steps.append("AppKit cannot focus a specific window in another application")
+    }
+
+    let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+    return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)
+  }
+
   func focus(_ target: ResolvedTarget, strategy: ActivationStrategy) -> FocusAttempt {
     let started = DispatchTime.now().uptimeNanoseconds
     var steps: [String] = []
 
     if strategy == .ax || strategy == .both {
       let applicationElement = AXUIElementCreateApplication(target.pid)
+      AXUIElementSetMessagingTimeout(applicationElement, 0.1)
 
-      if let window = target.window {
-        let mainError = AXUIElementSetAttributeValue(
-          window,
-          kAXMainAttribute as CFString,
-          kCFBooleanTrue
-        )
-        steps.append("AX main=\(describe(mainError))")
-
-        let raiseError = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-        steps.append("AX raise=\(describe(raiseError))")
-      } else {
-        steps.append("AX window=unavailable")
-      }
+      appendWindowFocusSteps(target.window, includeFocused: false, to: &steps)
 
       let frontmostError = AXUIElementSetAttributeValue(
         applicationElement,
@@ -63,14 +97,7 @@ final class AccessibilityFocuser {
       )
       steps.append("AX frontmost=\(describe(frontmostError))")
 
-      if let window = target.window {
-        let focusedError = AXUIElementSetAttributeValue(
-          window,
-          kAXFocusedAttribute as CFString,
-          kCFBooleanTrue
-        )
-        steps.append("AX focused=\(describe(focusedError))")
-      }
+      appendFocusedStep(target.window, to: &steps)
     }
 
     if strategy == .appkit || strategy == .both {
@@ -84,6 +111,42 @@ final class AccessibilityFocuser {
 
     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)
+  }
+
+  private func appendWindowFocusSteps(
+    _ window: AXUIElement?,
+    includeFocused: Bool = true,
+    to steps: inout [String]
+  ) {
+    guard let window else {
+      steps.append("AX window=unavailable")
+      return
+    }
+
+    let mainError = AXUIElementSetAttributeValue(
+      window,
+      kAXMainAttribute as CFString,
+      kCFBooleanTrue
+    )
+    steps.append("AX main=\(describe(mainError))")
+
+    let raiseError = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+    steps.append("AX raise=\(describe(raiseError))")
+
+    if includeFocused {
+      appendFocusedStep(window, to: &steps)
+    }
+  }
+
+  private func appendFocusedStep(_ window: AXUIElement?, to steps: inout [String]) {
+    guard let window else { return }
+
+    let focusedError = AXUIElementSetAttributeValue(
+      window,
+      kAXFocusedAttribute as CFString,
+      kCFBooleanTrue
+    )
+    steps.append("AX focused=\(describe(focusedError))")
   }
 
   private func describe(_ error: AXError) -> String {

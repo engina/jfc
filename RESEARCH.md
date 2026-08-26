@@ -45,6 +45,14 @@ AX calls are synchronous messages, but a successful return does not constitute
 proof that downstream event dispatch observes the new focus state. That is what
 the physical-click test measures.
 
+Application focus and window focus are separate. When the target application is
+already frontmost, JFC compares the window beneath the pointer with the
+application's `kAXFocusedWindowAttribute`. A click in the focused window passes
+through without intervention. A click in another window uses only the AX
+main/raise/focus operations; it does not reactivate the already-frontmost
+application. If the focused-window lookup fails, JFC passes the click through
+unchanged.
+
 ## Edge cases
 
 - Multiple displays: Core Graphics event locations and AX hit-testing use the

@@ -36,8 +36,9 @@ event path can be isolated from application-lifecycle and packaging issues.
 
 - Observe only `leftMouseDown` and `leftMouseUp`.
 - Do not observe or alter keyboard input, right click, scrolling, or movement.
-- If the target application is already active, pass the event through without
-  special handling.
+- If the target application and target window are already active, pass the
+  event through without special handling. If another window of the active
+  application is clicked, focus only that window before passing the event.
 - Pass `leftMouseUp` through unchanged.
 - Preserve click count, timestamps, flags, pressure, device metadata,
   click-and-hold, and double-click semantics by returning the incoming event.

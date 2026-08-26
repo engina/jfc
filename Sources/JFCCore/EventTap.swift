@@ -175,13 +175,8 @@ public final class EventTap {
       return Unmanaged.passUnretained(event)
 
     case .success(let target):
-      let targetIsActive = activeApplication?.processIdentifier == target.pid
-      if targetIsActive || target.shouldBypass {
+      if target.shouldBypass {
         if configuration.verbose && configuration.loggingEnabled {
-          let reason =
-            targetIsActive
-            ? "target application is already active"
-            : (target.bypassReason ?? "safety policy")
           Log.block(
             clickLog(
               target: target,
@@ -189,7 +184,7 @@ public final class EventTap {
               point: point,
               clickState: clickState
             ) + [
-              "action: bypass (\(reason))",
+              "action: bypass (\(target.bypassReason ?? "safety policy"))",
               "forwarding original click unchanged",
             ])
         }
@@ -202,6 +197,55 @@ public final class EventTap {
         point: point,
         clickState: clickState
       )
+
+      let targetApplicationIsActive = activeApplication?.processIdentifier == target.pid
+      if targetApplicationIsActive {
+        switch focuser.windowFocusState(target) {
+        case .focused:
+          if configuration.verbose && configuration.loggingEnabled {
+            lines.append("action: bypass (target window is already focused)")
+            lines.append("forwarding original click unchanged")
+            Log.block(lines)
+          }
+          return Unmanaged.passUnretained(event)
+
+        case .unavailable(let reason):
+          if configuration.verbose && configuration.loggingEnabled {
+            lines.append("action: bypass (\(reason))")
+            lines.append("forwarding original click unchanged")
+            Log.block(lines)
+          }
+          return Unmanaged.passUnretained(event)
+
+        case .unfocused:
+          if configuration.observeOnly {
+            lines.append("observe-only: would focus another window in the active application")
+            lines.append("forwarding original click unchanged")
+            if configuration.loggingEnabled {
+              Log.block(lines)
+            }
+            return Unmanaged.passUnretained(event)
+          }
+
+          lines.append(
+            "focusing another window in the active application via \(configuration.activationStrategy.rawValue)..."
+          )
+          let focusAttempt = focuser.focusWindow(
+            target,
+            strategy: configuration.activationStrategy
+          )
+          lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
+          appendForwardingLog(
+            to: &lines,
+            focusAttempt: focusAttempt,
+            started: started
+          )
+          if configuration.loggingEnabled {
+            Log.block(lines)
+          }
+          return Unmanaged.passUnretained(event)
+        }
+      }
 
       if configuration.observeOnly {
         lines.append("observe-only: would activate \(target.applicationName)")
@@ -217,26 +261,38 @@ public final class EventTap {
       let focusAttempt = focuser.focus(target, strategy: configuration.activationStrategy)
       lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
 
-      if configuration.settleMilliseconds > 0 {
-        Thread.sleep(
-          forTimeInterval: Double(configuration.settleMilliseconds) / 1_000.0
-        )
-        lines.append("held original event for \(configuration.settleMilliseconds) ms")
-      }
-
-      let totalElapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-      lines.append(
-        String(
-          format: "forwarding SAME CGEvent (focus %.2f ms, total %.2f ms)",
-          focusAttempt.elapsedMilliseconds,
-          totalElapsed
-        )
+      appendForwardingLog(
+        to: &lines,
+        focusAttempt: focusAttempt,
+        started: started
       )
       if configuration.loggingEnabled {
         Log.block(lines)
       }
       return Unmanaged.passUnretained(event)
     }
+  }
+
+  private func appendForwardingLog(
+    to lines: inout [String],
+    focusAttempt: FocusAttempt,
+    started: UInt64
+  ) {
+    if configuration.settleMilliseconds > 0 {
+      Thread.sleep(
+        forTimeInterval: Double(configuration.settleMilliseconds) / 1_000.0
+      )
+      lines.append("held original event for \(configuration.settleMilliseconds) ms")
+    }
+
+    let totalElapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+    lines.append(
+      String(
+        format: "forwarding SAME CGEvent (focus %.2f ms, total %.2f ms)",
+        focusAttempt.elapsedMilliseconds,
+        totalElapsed
+      )
+    )
   }
 
   private func clickLog(
