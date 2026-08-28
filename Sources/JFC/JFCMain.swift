@@ -23,7 +23,7 @@ enum JFCMain {
     Log.block([
       "jfc first-click experiment",
       "mode: \(options.observeOnly ? "observe only" : "same-event pass-through")",
-      "activation: \(options.activationStrategy.rawValue)",
+      "activation: AX window focus + AppKit app activation",
       "settle: \(options.settleMilliseconds) ms",
       "Accessibility: \(accessibilityGranted ? "granted" : "NOT GRANTED")",
     ])

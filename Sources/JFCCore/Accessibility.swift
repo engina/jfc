@@ -66,48 +66,33 @@ final class AccessibilityFocuser {
     return CFEqual(targetWindow, focusedWindow) ? .focused : .unfocused
   }
 
-  func focusWindow(_ target: ResolvedTarget, strategy: ActivationStrategy) -> FocusAttempt {
+  func focusWindow(_ target: ResolvedTarget) -> FocusAttempt {
     let started = DispatchTime.now().uptimeNanoseconds
     var steps: [String] = []
 
-    if strategy == .ax || strategy == .both {
-      appendWindowFocusSteps(target.window, to: &steps)
-    } else {
-      steps.append("AppKit cannot focus a specific window in another application")
-    }
+    appendWindowFocusSteps(target.window, to: &steps)
 
     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)
   }
 
-  func focus(_ target: ResolvedTarget, strategy: ActivationStrategy) -> FocusAttempt {
+  func focus(_ target: ResolvedTarget) -> FocusAttempt {
     let started = DispatchTime.now().uptimeNanoseconds
     var steps: [String] = []
 
-    if strategy == .ax || strategy == .both {
-      let applicationElement = AXUIElementCreateApplication(target.pid)
-      AXUIElementSetMessagingTimeout(applicationElement, 0.1)
+    let applicationElement = AXUIElementCreateApplication(target.pid)
+    AXUIElementSetMessagingTimeout(applicationElement, 0.1)
 
-      appendWindowFocusSteps(target.window, includeFocused: false, to: &steps)
+    appendWindowFocusSteps(target.window, includeFocused: false, to: &steps)
 
-      let frontmostError = AXUIElementSetAttributeValue(
-        applicationElement,
-        kAXFrontmostAttribute as CFString,
-        kCFBooleanTrue
-      )
-      steps.append("AX frontmost=\(describe(frontmostError))")
-
-      appendFocusedStep(target.window, to: &steps)
+    if let application = NSRunningApplication(processIdentifier: target.pid) {
+      let activated = application.activate(options: [])
+      steps.append("AppKit activate=\(activated ? "success" : "failure")")
+    } else {
+      steps.append("AppKit application=unavailable")
     }
 
-    if strategy == .appkit || strategy == .both {
-      if let application = NSRunningApplication(processIdentifier: target.pid) {
-        let activated = application.activate(options: [])
-        steps.append("AppKit activate=\(activated ? "accepted" : "rejected")")
-      } else {
-        steps.append("AppKit application=unavailable")
-      }
-    }
+    appendFocusedStep(target.window, to: &steps)
 
     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)

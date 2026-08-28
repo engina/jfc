@@ -1,8 +1,13 @@
 # macOS event/focus notes
 
-The decisive Chrome/YouTube acceptance test passed with the default `both`
-activation strategy and a zero-millisecond settle delay. Repeated use also
-continued successfully across many sleep/wake cycles.
+The original decisive Chrome/YouTube acceptance test passed with combined AX
+and AppKit activation and a zero-millisecond settle delay. Repeated use also
+continued successfully across many sleep/wake cycles. A later isolation test
+found that AppKit activation alone did not operate the target control in either
+the working or failing multi-display arrangement. A hybrid path that selects
+the target window through AX, activates the app through AppKit without
+`activateAllWindows`, and then focuses the target window through AX passed the
+previously failing multi-display arrangement.
 
 ## Why return the original event first
 
@@ -34,12 +39,13 @@ so `JFC.app` must receive its own Accessibility grant.
 performs hit-testing by z-order. From the hit element, `kAXWindowAttribute`
 provides the containing window and `AXUIElementGetPid` provides the owner.
 
-The focus experiment has three selectable paths:
-
-- `ax`: set the target window's `kAXMainAttribute`, perform `kAXRaiseAction`,
-  set the application's `kAXFrontmostAttribute`, and focus the window.
-- `appkit`: call the current `NSRunningApplication.activate(options:)` API.
-- `both`: AX first, then AppKit (the default experiment).
+The inactive-app focus path sets the target window's `kAXMainAttribute`,
+performs `kAXRaiseAction`, activates the application with
+`NSRunningApplication.activate(options: [])`, and then sets the target window's
+`kAXFocusedAttribute`. Omitting `activateAllWindows` keeps other visible windows
+of the target application from being raised. AppKit activation alone did not
+operate the target control; selecting the target window through AX first is
+required by the tested path.
 
 AX calls are synchronous messages, but a successful return does not constitute
 proof that downstream event dispatch observes the new focus state. That is what
@@ -52,6 +58,42 @@ through without intervention. A click in another window uses only the AX
 main/raise/focus operations; it does not reactivate the already-frontmost
 application. If the focused-window lookup fails, JFC passes the click through
 unchanged.
+
+### Multi-window activation bug
+
+The failing setup used three displays: D1 was the MacBook display, D2 the
+primary external display, and D3 the secondary external display. With VS Code
+active on D2, C1 (a Brave window) behind it on D2, and C2 (the Brave YouTube
+window) on D3, clicking C2 did not operate the video. The old AX path selected
+C2 but also raised C1 above VS Code. With JFC stopped, macOS raised and
+activated only C2; VS Code remained above C1.
+
+The old path's result depended on the location of the other visible Brave
+window:
+
+| Active window | C1 display | C2 display | First click operated C2 |
+| --- | --- | --- | --- |
+| VS Code on D2 | D2 | D3 | No |
+| VS Code on D2 | D2 | D2 | Yes |
+| VS Code on D2 | D1 | D3 | Yes |
+| VS Code on D2 | D1 | D1 | Yes |
+| VS Code on D2 | D2 | D1 | No |
+| VS Code on D2 | D3 | D1 | Yes |
+
+Verbose traces for a failing D2/D2/D3 click and a working D2/D1/D3 click were
+otherwise equivalent: both resolved the same target PID, C2 window, and AX
+element, and all four AX operations reported success. Disabling the
+application-wide `kAXFrontmostAttribute` stopped C1 from being raised, but also
+stopped the formerly working D2/D1/D3 case from operating C2. That case worked
+again when C1 was minimized. This isolated the regression to app-wide
+activation interacting with another visible window, rather than AX hit-testing
+the wrong target.
+
+AppKit activation alone was insufficient. The working replacement first makes
+C2 main and raises it through AX, calls
+`NSRunningApplication.activate(options: [])` without `activateAllWindows`, then
+focuses C2 through AX. The previously failing D2/D2/D3 arrangement then
+operated C2 on the first click without raising C1.
 
 ## Edge cases
 
@@ -158,6 +200,8 @@ it requires a new notarization submission.
   <https://developer.apple.com/documentation/applicationservices/1462077-axuielementcopyelementatposition>
 - Apple, `NSRunningApplication.activate(options:)`:
   <https://developer.apple.com/documentation/appkit/nsrunningapplication/activate(options:)>
+- Apple, `NSApplication.ActivationOptions` window-ordering behavior:
+  <https://developer.apple.com/documentation/appkit/nsapplication/activationoptions>
 - Apple, `kAXFrontmostAttribute`:
   <https://developer.apple.com/documentation/applicationservices/kaxfrontmostattribute>
 - Apple, on-screen window ordering:

@@ -2,7 +2,6 @@ import Foundation
 import JFCCore
 
 struct CLIOptions {
-  var activationStrategy: ActivationStrategy = .both
   var observeOnly = false
   var promptForPermissions = true
   var settleMilliseconds: UInt32 = 0
@@ -10,7 +9,6 @@ struct CLIOptions {
 
   var eventTapConfiguration: EventTapConfiguration {
     EventTapConfiguration(
-      activationStrategy: activationStrategy,
       observeOnly: observeOnly,
       settleMilliseconds: settleMilliseconds,
       verbose: verbose,
@@ -25,8 +23,6 @@ struct CLIOptions {
       jfc [options]
 
     Options:
-      --activation <ax|appkit|both>
-                                  Focus mechanism to test (default: both)
       --settle-ms <0...100>       Hold the original mouse-down briefly after focus
                                   (default: 0; no event is synthesized)
       --observe                   Resolve and log clicks without changing focus
@@ -36,10 +32,8 @@ struct CLIOptions {
 
     Start with the defaults. If the first click only focuses Chrome, compare:
 
-      jfc --activation ax
-      jfc --activation appkit
-      jfc --activation both --settle-ms 10
-      jfc --activation both --settle-ms 20
+      jfc --settle-ms 10
+      jfc --settle-ms 20
     """
 
   static func parse(_ arguments: [String]) throws -> CLIOptions {
@@ -49,15 +43,6 @@ struct CLIOptions {
     while index < arguments.count {
       let argument = arguments[index]
       switch argument {
-      case "--activation":
-        index += 1
-        guard index < arguments.count,
-          let strategy = ActivationStrategy(rawValue: arguments[index])
-        else {
-          throw CLIError("--activation requires one of: ax, appkit, both")
-        }
-        options.activationStrategy = strategy
-
       case "--settle-ms":
         index += 1
         guard index < arguments.count,

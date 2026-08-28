@@ -20,7 +20,7 @@ default configuration and no settle delay:
 1. A head-insert `cgSessionEventTap` receives `leftMouseDown`.
 2. AX resolves the element/window beneath the event location.
 3. The target window is made main, raised, and focused; its app is made
-   frontmost. AppKit activation is also requested.
+   frontmost.
 4. The callback returns the same incoming `CGEvent`.
 5. Chrome receives that original click and operates the YouTube control.
 

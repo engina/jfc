@@ -2,27 +2,18 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-public enum ActivationStrategy: String, CaseIterable {
-  case ax
-  case appkit
-  case both
-}
-
 public struct EventTapConfiguration {
-  public var activationStrategy: ActivationStrategy
   public var observeOnly: Bool
   public var settleMilliseconds: UInt32
   public var verbose: Bool
   public var loggingEnabled: Bool
 
   public init(
-    activationStrategy: ActivationStrategy = .both,
     observeOnly: Bool = false,
     settleMilliseconds: UInt32 = 0,
     verbose: Bool = false,
     loggingEnabled: Bool = false
   ) {
-    self.activationStrategy = activationStrategy
     self.observeOnly = observeOnly
     self.settleMilliseconds = settleMilliseconds
     self.verbose = verbose
@@ -228,12 +219,9 @@ public final class EventTap {
           }
 
           lines.append(
-            "focusing another window in the active application via \(configuration.activationStrategy.rawValue)..."
+            "focusing another window in the active application via AX..."
           )
-          let focusAttempt = focuser.focusWindow(
-            target,
-            strategy: configuration.activationStrategy
-          )
+          let focusAttempt = focuser.focusWindow(target)
           lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
           appendForwardingLog(
             to: &lines,
@@ -256,9 +244,8 @@ public final class EventTap {
         return Unmanaged.passUnretained(event)
       }
 
-      lines.append(
-        "activating \(target.applicationName) via \(configuration.activationStrategy.rawValue)...")
-      let focusAttempt = focuser.focus(target, strategy: configuration.activationStrategy)
+      lines.append("activating \(target.applicationName) via AX window focus + AppKit...")
+      let focusAttempt = focuser.focus(target)
       lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
 
       appendForwardingLog(
