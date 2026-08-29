@@ -9,6 +9,7 @@ let package = Package(
   ],
   products: [
     .executable(name: "jfc", targets: ["JFC"]),
+    .executable(name: "jfc-input-diagnostic", targets: ["JFCInputDiagnostic"]),
     .executable(name: "JFCApp", targets: ["JFCApp"]),
     .executable(name: "JFCLoginItem", targets: ["JFCLoginItem"]),
   ],
@@ -25,6 +26,10 @@ let package = Package(
         "CLIOptions.swift",
         "JFCMain.swift",
       ]
+    ),
+    .executableTarget(
+      name: "JFCInputDiagnostic",
+      path: "Sources/JFCInputDiagnostic"
     ),
     .executableTarget(
       name: "JFCApp",

@@ -148,11 +148,41 @@ swift build
 
 For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
 
+For physical-versus-synthetic input analysis, use the separate diagnostic:
+
+```sh
+swift build --product jfc-input-diagnostic
+.build/debug/jfc-input-diagnostic --clicks 1 > click.jsonl
+```
+
+When LaunchServices must own the process identity—for example, when driving a
+VM over SSH—place the executable in an app bundle and launch it with
+`--output <path>`. This preserves structured capture output even though the app
+has no terminal.
+
+It emits JSON Lines for the matched pointing device and its HID element
+catalog, primary-button values, every decoded value sharing the button report's
+timestamp, the raw HID report bytes, and the corresponding left down/up at the
+HID, session, and annotated-session Core Graphics taps. The Core Graphics
+records also include the serialized event, documented mouse and source fields,
+and the AppKit `NSEvent` view of the same event.
+
+The diagnostic deliberately observes only left mouse down/up. It requires
+Input Monitoring because raw `IOHIDManager` reports are the evidence needed to
+distinguish an input framework's click from a physical HID click. This does not
+change JFC's Accessibility-only permission model. Captures may contain device
+identifiers, raw HID bytes, pointer coordinates, and source process identifiers
+and should be treated as private.
+
 Focus VS Code, then click Play/Pause in an inactive Chrome/YouTube window. The
 control should operate on that first physical click. Alternate between the two
 apps for at least 20 clicks and check for lost or doubled clicks, play/pause
 reversals, drag regressions, and noticeable delay. Synthetic input does not
 substitute for this test.
+
+The VM automation environment, canonical cross-version scenario matrix,
+rejected input paths, and qualified guest virtual-HID transport are recorded in
+`E2E_RUNBOOK.md`.
 
 ## Direct distribution
 

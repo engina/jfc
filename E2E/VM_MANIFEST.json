@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "host": {
+    "utm": {
+      "version": "4.7.5",
+      "build": "118",
+      "bundleIdentifier": "com.utmapp.UTM",
+      "developerTeam": "WDNLXAD4W8",
+      "backend": "Apple Virtualization.framework"
+    },
+    "vm": {
+      "architecture": "aarch64",
+      "cpuCount": 6,
+      "memoryMiB": 8192,
+      "diskGiB": 64,
+      "display": {
+        "width": 1920,
+        "height": 1200,
+        "pixelsPerInch": 80,
+        "dynamicResolution": true
+      },
+      "network": "shared",
+      "keyboard": "Mac",
+      "pointer": "Trackpad"
+    }
+  },
+  "guest": {
+    "productVersion": "14.6.1",
+    "buildVersion": "23G93",
+    "architecture": "arm64",
+    "restoreImage": {
+      "url": "https://updates.cdn-apple.com/2024SummerFCS/fullrestores/062-52859/932E0A8F-6644-4759-82DA-F8FA8DEA806A/UniversalMac_14.6.1_23G93_Restore.ipsw",
+      "size": 14790601661,
+      "sha256": "e387251e63387150ba76cf784bdb97d2016e5d43c6f809c90a115eb067a097b8"
+    },
+    "xcode": {
+      "version": "16.2",
+      "build": "16C5032a",
+      "installer": "Xcode_16.2.xip",
+      "installerSHA256": "0e367d06eb7c334ea143bada5e4422f56688aabff571bedf0d2ad9434b7290de"
+    },
+    "swift": "6.0.3",
+    "homebrew": {
+      "version": "6.0.20",
+      "commit": "3e3da86e4eaccd23f4ce43df9b0a31b16c707347"
+    },
+    "formulae": {
+      "tapCommit": "22a6c12c061b19c60477de812cafdd2ecd6aaf11",
+      "node": {
+        "version": "26.8.1",
+        "sourceURL": "https://nodejs.org/dist/v26.8.1/node-v26.8.1.tar.xz",
+        "sourceSHA256": "d1698832a1a10f050cdda044a3e3d6a748246811e2e7bc89ba9a8bd693dc45f2",
+        "macOSPackageURL": "https://nodejs.org/dist/v26.8.1/node-v26.8.1.pkg",
+        "macOSPackageSHA256": "95d08a9a59b0712e84fb2beb18db3ec1c660242b58eb14d5eff12d75ed7bb150",
+        "arm64SonomaBottleSHA256": "dd9950f4de42c441edf498dbcab731ab71dc5ab1ae5a4aed19051df404c743e4"
+      },
+      "xcodegen": {
+        "version": "2.46.0",
+        "sourceURL": "https://github.com/yonaskolb/XcodeGen/archive/refs/tags/2.46.0.tar.gz",
+        "sourceSHA256": "c83c7bd70255b0ddf4116dadce16bdf0e5939165b43a544e124de294ec84aa27",
+        "arm64SonomaBottleSHA256": "e23b1e8501ad0276d810f41d195ad30787e55634e845c039d4ce015491455dba"
+      }
+    },
+    "npm": "11.19.0",
+    "automation": {
+      "appium": {
+        "version": "3.7.0",
+        "tarball": "https://registry.npmjs.org/appium/-/appium-3.7.0.tgz",
+        "integrity": "sha512-2AWajtPbjYGTJmVqpavGctO7zK9M7Q74L3vK9lFKPs6qr3N3/xy3STHnkXJk/wgaZ+BDgeKD68zQQ5sAP6A/cA=="
+      },
+      "appiumMac2Driver": {
+        "version": "4.3.0",
+        "tarball": "https://registry.npmjs.org/appium-mac2-driver/-/appium-mac2-driver-4.3.0.tgz",
+        "integrity": "sha512-BuSGoVtm7exCCwUvRTscTfU4N4Vmf8nV7amrUbYuvpR1UNQufurlBuf0NWsASJdezcXf23MZpoREZcH3nkf81w=="
+      }
+    },
+    "applications": {
+      "homebrewCaskTapCommit": "65da6c25ef50f06d1bf4008b5bf6fe6505807033",
+      "betterDisplay": {
+        "bundleIdentifier": "pro.betterdisplay.BetterDisplay",
+        "version": "4.3.6",
+        "build": "50119",
+        "url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.3.6/BetterDisplay-v4.3.6.dmg",
+        "sha256": "04e212bb1dfa5622e1a0bba078f5aa454e82e73ae3209faf00be413b5dbc854f",
+        "sparkleSignature": "i7Gbqcw7Lg8mciAil2EE7U6rQSQnK/ZfMvWe0TxPHdikFY0qqNFXaBzrISGmpwDku5jgwLzzPNyKASiSC7MGCw=="
+      },
+      "brave": {
+        "bundleIdentifier": "com.brave.Browser",
+        "version": "152.1.94.117",
+        "build": "194.117",
+        "homebrewCaskVersion": "1.94.117.0",
+        "url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/194.117/Brave-Browser-arm64.dmg",
+        "sha256": "b2c57075f6c047c0f849abee965c124b43909b4d93e350a85f7f5dae12a48db1"
+      },
+      "visualStudioCode": {
+        "bundleIdentifier": "com.microsoft.VSCode",
+        "version": "1.135.0",
+        "build": "1.135.0",
+        "url": "https://update.code.visualstudio.com/1.135.0/darwin-arm64/stable",
+        "sha256": "c9a39179c54b5b9add0307613e4c66f443672456c62d43fd68953f8aa10e7432"
+      },
+      "jfc": {
+        "bundleIdentifier": "io.e10n.jfc",
+        "version": "0.1.1",
+        "build": "2",
+        "sourceCommit": "f96718f17a7954b9dbfd80a656fc99d6c290295c"
+      }
+    },
+    "virtualHID": {
+      "packageVersion": "8.2.0",
+      "systemExtensionVersion": "1.8.0",
+      "developerTeam": "G43BCU2T37",
+      "upstreamTag": "v8.2.0",
+      "upstreamCommit": "cd0cb13e09a04be4d765b6f88ecf7d67bff6f2c5",
+      "packageSHA256": "7faf4c33046c2274726da9e29da795fb2d2ad81796557db0fcc1686c611eeafc"
+    },
+    "displays": {
+      "appKit": [
+        { "name": "D1", "id": 1, "x": 0, "y": 0, "width": 1450, "height": 906 },
+        { "name": "D2", "id": 10, "x": 1450, "y": -534, "width": 2560, "height": 1440 },
+        { "name": "D3", "id": 11, "x": 4010, "y": -534, "width": 2560, "height": 1440 }
+      ],
+      "coreGraphics": [
+        { "name": "D1", "id": 1, "x": 0, "y": 0, "width": 1450, "height": 906 },
+        { "name": "D2", "id": 2, "x": 1450, "y": 0, "width": 2560, "height": 1440 },
+        { "name": "D3", "id": 3, "x": 4010, "y": 0, "width": 2560, "height": 1440 }
+      ]
+    }
+  }
+}

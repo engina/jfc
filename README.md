@@ -49,3 +49,12 @@ open .build/JFC.app
 
 Closing the window leaves JFC running. Reopen the app to show its controls;
 press `Cmd-Q` to quit.
+
+## Input diagnostic
+
+The separate `jfc-input-diagnostic` executable records a left click at the
+public HID and Core Graphics layers for physical-versus-automated input
+comparison. It observes no keyboard events and does not change JFC's runtime
+permissions or event path. See [RESEARCH.md](RESEARCH.md) for usage and output
+details. The reproducible UTM, multi-display, Appium, and virtual-HID test setup
+is maintained in [E2E_RUNBOOK.md](E2E_RUNBOOK.md).
