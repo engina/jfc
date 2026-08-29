@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JFC Click Fixture — 0</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      main {
+        display: grid;
+        gap: 24px;
+        justify-items: center;
+        text-align: center;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      #click-target {
+        font: inherit;
+        font-size: 28px;
+        min-height: 120px;
+        min-width: 320px;
+      }
+
+      #click-count {
+        font: inherit;
+        font-size: 36px;
+        text-align: center;
+        width: 5ch;
+      }
+    </style>
+  </head>
+  <body data-click-count="0">
+    <main>
+      <h1>JFC click fixture</h1>
+      <button id="click-target" type="button" aria-label="JFC click target">
+        Click target
+      </button>
+      <p>
+        <label for="click-count">Accepted clicks</label>
+      </p>
+      <input
+        id="click-count"
+        aria-label="JFC accepted click count"
+        readonly
+        value="0"
+      >
+    </main>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const target = document.querySelector("#click-target");
+        const output = document.querySelector("#click-count");
+        let clickCount = 0;
+
+        const render = () => {
+          const value = String(clickCount);
+          output.value = value;
+          document.body.dataset.clickCount = value;
+          document.title = `JFC Click Fixture — ${value}`;
+        };
+
+        target.addEventListener("click", () => {
+          clickCount += 1;
+          render();
+        });
+
+        window.jfcFixture = Object.freeze({
+          get clickCount() {
+            return clickCount;
+          },
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

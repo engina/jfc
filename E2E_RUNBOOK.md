@@ -254,6 +254,34 @@ Stop the attached root daemon when the test session ends. The Driver Extension
 may remain installed and enabled in the isolated VM, but no virtual-input
 client should remain running between sessions.
 
+## Deterministic click fixture
+
+`E2E/Fixture/index.html` is the browser fixture. It has no network or package
+dependency. Opening or reloading it resets its accepted-click count to zero.
+Its stable accessibility labels are `JFC click target` for the button and
+`JFC accepted click count` for the read-only counter. Each DOM `click` increments
+the visible counter and the number in the window title exactly once.
+
+Copy the fixture into the guest and open it as a local file in Brave. Before
+each case, reload it and verify the counter and window-title suffix are both
+zero. Input must come from the qualified virtual-HID client; do not invoke the
+button through JavaScript or Appium.
+
+### Qualified single-window A/B result
+
+On macOS 14.6.1 (23G93), Brave displayed the fixture while TextEdit was the
+active application. One qualified virtual-HID click was sent to the fixture
+button in each case:
+
+| JFC state | Accepted-click count | Result |
+| --- | ---: | --- |
+| Stopped | 0 | macOS activated Brave and swallowed the first click |
+| Running with `--launch-at-login` | 1 | JFC activated Brave and the original click operated the button once |
+
+Mac2 read the final accessibility value `1` and the Brave window title
+`JFC Click Fixture — 1 - Brave`. Mac2 was used only for setup and assertion;
+the tested input came from the virtual-HID client.
+
 ## Rejected input paths
 
 Do not regress to these approaches:
@@ -298,6 +326,6 @@ process identifiers.
 
 - Package daemon and client startup into a narrowly scoped, reviewable
   test-runner privilege design.
-- Implement a deterministic fixture and machine-readable assertion.
 - Automate window creation and placement for the canonical scenario matrix.
-- Run JFC stopped/running A/B tests before expanding into fuzzing.
+- Run the full JFC stopped/running canonical scenario matrix before expanding
+  into fuzzing.
