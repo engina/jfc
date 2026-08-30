@@ -59,6 +59,11 @@
         "sourceURL": "https://github.com/yonaskolb/XcodeGen/archive/refs/tags/2.46.0.tar.gz",
         "sourceSHA256": "c83c7bd70255b0ddf4116dadce16bdf0e5939165b43a544e124de294ec84aa27",
         "arm64SonomaBottleSHA256": "e23b1e8501ad0276d810f41d195ad30787e55634e845c039d4ce015491455dba"
+      },
+      "ffmpeg": {
+        "version": "9.0.1_1",
+        "arm64SonomaBottleURL": "https://ghcr.io/v2/homebrew/core/ffmpeg/blobs/sha256:07fd75576a93eff2661ae808024348995c817868db3f1397a114e4463305e05e",
+        "arm64SonomaBottleSHA256": "07fd75576a93eff2661ae808024348995c817868db3f1397a114e4463305e05e"
       }
     },
     "npm": "11.19.0",

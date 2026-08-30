@@ -180,9 +180,24 @@ apps for at least 20 clicks and check for lost or doubled clicks, play/pause
 reversals, drag regressions, and noticeable delay. Synthetic input does not
 substitute for this test.
 
-The VM automation environment, canonical cross-version scenario matrix,
-rejected input paths, and qualified guest virtual-HID transport are recorded in
+The VM automation environment, JSON scenario setup executor, concurrent Mac2
+multi-display recording, canonical cross-version scenario matrix, rejected
+input paths, and qualified guest virtual-HID transport are recorded in
 `E2E_RUNBOOK.md`.
+
+Keep Core Graphics display and cursor calls out of an SSH-launched root
+VirtualHID client. On the macOS 14 VM, `CGGetActiveDisplayList` blocked while
+initializing the root process's SkyLight connection and wedged WindowServer
+until reboot. The automated design positions and verifies the pointer from the
+logged-in test-user process, then uses the root-only client solely for the HID
+button-down/button-up reports.
+
+The first three-display JSON scenario now passes end-to-end with JFC running:
+VS Code starts active above `brave.1` on D2, one VirtualHID click targets
+`brave.2` on D3, the fixture counter changes from zero to one, `brave.2`
+becomes the focused Brave window, and `brave.1` remains behind VS Code. Mac2
+records every display around the action and supplies the post-action AX value;
+Core Graphics independently verifies display placement and global z-order.
 
 ## Direct distribution
 

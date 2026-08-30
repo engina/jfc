@@ -47,7 +47,7 @@
   </head>
   <body data-click-count="0">
     <main>
-      <h1>JFC click fixture</h1>
+      <h1 id="fixture-title">JFC click fixture</h1>
       <button id="click-target" type="button" aria-label="JFC click target">
         Click target
       </button>
@@ -68,13 +68,20 @@
 
         const target = document.querySelector("#click-target");
         const output = document.querySelector("#click-count");
+        const heading = document.querySelector("#fixture-title");
+        const windowName = new URLSearchParams(window.location.search).get("window");
         let clickCount = 0;
 
         const render = () => {
           const value = String(clickCount);
+          const prefix = windowName ? `${windowName} — ` : "";
           output.value = value;
           document.body.dataset.clickCount = value;
-          document.title = `JFC Click Fixture — ${value}`;
+          document.body.dataset.window = windowName ?? "";
+          heading.textContent = windowName
+            ? `JFC click fixture: ${windowName}`
+            : "JFC click fixture";
+          document.title = `${prefix}JFC Click Fixture — ${value}`;
         };
 
         target.addEventListener("click", () => {

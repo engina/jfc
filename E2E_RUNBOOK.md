@@ -29,6 +29,7 @@ The exact qualified versions are:
 | Swift | 6.0.3 |
 | Homebrew | 6.0.20 |
 | Node.js / npm | 26.8.1 / 11.19.0 |
+| FFmpeg | 9.0.1_1 |
 | XcodeGen | 2.46.0 |
 | Appium / Mac2 | 3.7.0 / 4.3.0 |
 | BetterDisplay | 4.3.6 (50119) |
@@ -127,7 +128,7 @@ acceptance test required by `AGENTS.md`.
    the manifest. Install Homebrew, then the pinned guest tools:
 
    ```sh
-   brew install node xcodegen
+   brew install node xcodegen ffmpeg
    brew install --cask brave-browser visual-studio-code
    npm install --global appium@3.7.0
    appium driver install mac2@4.3.0
@@ -202,29 +203,21 @@ cd Karabiner-DriverKit-VirtualHIDDevice/examples/virtual-hid-device-service-clie
 make
 ```
 
-The resulting `build/Release/virtual-hid-device-service-client` sends one
-button-1 down report, waits 120 ms, sends button-up, and exits. It sends no
-keyboard report. With no arguments it clicks at the current pointer position.
-`--move x y` targets a Core Graphics guest coordinate without clicking, and
-`--target x y` targets that coordinate and clicks. Targeting uses only relative
-HID reports and closes the loop by reading the resulting guest cursor position.
+The resulting `build/Release/virtual-hid-device-service-client` accepts no
+arguments, sends one button-1 down report at the current pointer, waits 120 ms,
+sends button-up, and exits. It sends no keyboard or pointer-movement report.
+The scenario executor positions and verifies the pointer in the logged-in user
+session before invoking this root-only click client.
 
-The macOS 14 qualification moved to each display center without clicking:
+Do not call Core Graphics display or cursor APIs from the root client. A client
+launched by `sudo` over SSH blocked in `CGGetActiveDisplayList` on macOS 14 and
+wedged WindowServer until the VM was rebooted. Keeping display lookup and pointer
+positioning in the logged-in session avoids that invalid process/session mix.
 
-| Display | Requested | Reported final position | Relative reports |
-| --- | --- | --- | ---: |
-| D1 | `(725, 453)` | `(724.25, 452.324)` | 69 |
-| D2 | `(2730, 720)` | `(2729.44, 719.426)` | 85 |
-| D3 | `(5290, 720)` | `(5289.38, 719.426)` | 92 |
+## Manual input-transport qualification
 
-All three passed the per-axis tolerance of 0.75 Core Graphics points. This
-qualifies cross-display pointer targeting; it does not yet qualify clicks on a
-fixture or JFC behavior.
-
-## Per-run startup and input qualification
-
-Start the root daemon in an attached terminal. Do not install it as a permanent
-launch service until the unattended privilege design is explicitly approved:
+For a one-off diagnostic capture before installing the automated runner, start
+the root daemon in an attached terminal:
 
 ```sh
 sudo '/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon'
@@ -250,9 +243,43 @@ The capture passes only if it contains:
 The qualified macOS 14 capture met every condition. The virtual click did not
 require UTM to be active and did not use the host cursor or host focus.
 
-Stop the attached root daemon when the test session ends. The Driver Extension
-may remain installed and enabled in the isolated VM, but no virtual-input
-client should remain running between sessions.
+### Install the bounded runner privilege
+
+The upstream daemon and its clients require root. Do not grant passwordless
+access to a user-writable executable. After building the bounded client, install
+one root-owned copy and checksum-pinned sudo rules:
+
+```sh
+sudo E2E/VirtualHIDClick/install-privileges.sh \
+  ./build/Release/virtual-hid-device-service-client
+```
+
+The installer verifies the signed Karabiner daemon bundle, installs the bounded
+client and a root-owned on-demand LaunchDaemon definition, and authorizes only
+these checksum-pinned commands:
+
+- `/usr/local/libexec/jfc-e2e-virtual-hid-click`, which accepts no arguments and
+  sends only one left click at the current pointer.
+- `/bin/launchctl kickstart
+  system/io.e10n.jfc.e2e.virtual-hid`, which starts only the
+  installed VirtualHID job.
+- `/bin/launchctl kill SIGTERM
+  system/io.e10n.jfc.e2e.virtual-hid`, which stops only that job.
+
+It does not authorize a shell, interpreter, general process-management command,
+arbitrary `launchctl` arguments, or the user-writable build output. The rules
+stop matching if the installed client or `/bin/launchctl` changes. Re-run the
+installer after a deliberate upgrade.
+Remove the complete privilege boundary with:
+
+```sh
+sudo E2E/VirtualHIDClick/uninstall-privileges.sh
+```
+
+The scenario runner starts and stops the on-demand job around its actions and
+also attempts the exact stop command from its host-side cleanup trap. The job
+remains loaded but `state = not running` between tests. The Driver Extension may
+remain installed and enabled in the isolated VM.
 
 ## Deterministic click fixture
 
@@ -281,6 +308,146 @@ button in each case:
 Mac2 read the final accessibility value `1` and the Brave window title
 `JFC Click Fixture — 1 - Brave`. Mac2 was used only for setup and assertion;
 the tested input came from the virtual-HID client.
+
+## JSON scenario setup executor
+
+Scenarios are ordinary JSON. The outer `windows` array is D1, D2, D3; each
+inner array is back-to-front window order; and exactly one `*` marks the
+initially active window. Application, window, and control identities are
+encoded directly in tokens such as `brave.2.play`:
+
+```json
+{
+  "windows": [
+    [],
+    ["brave.1", "vscode*"],
+    ["brave.2"]
+  ],
+  "actions": [
+    {
+      "click": "brave.2.play",
+      "expect": {
+        "windows": [
+          [],
+          ["brave.1", "vscode"],
+          ["brave.2*"]
+        ],
+        "brave.2.counter": 1
+      }
+    }
+  ]
+}
+```
+
+Run the scenario from the host:
+
+```sh
+./scripts/setup-e2e-scenario.sh E2E/Scenarios/setup-smoke.json
+```
+
+The script copies the checked-in executor, scenario, and fixture to the guest;
+starts Appium when needed; builds, places, and stacks the requested windows;
+selects the starred window; resolves every referenced control through Mac2
+Accessibility; executes the JSON actions with the VirtualHID client; asserts
+the declared post-action state; records all displays; and writes the complete
+artifact set beneath an ignored `E2E/Artifacts/scenario-*` directory. Appium is
+the setup, assertion, and recording channel. It does not perform scenario
+clicks.
+
+`result.json` is deliberately compact. The scenario is the source of truth for
+setup, actions, and expected values, so the result contains only the scenario
+name and hash, overall status, and the normalized observed state at each action
+that declares expectations. It does not repeat setup, actions, expectations,
+artifact paths, Appium element identifiers, pointer coordinates, or raw Core
+Graphics window records. Setup verification remains a fail-fast precondition
+and is not reported as a test result. The fixture publishes its accepted-click
+count in both its control and window title, so the final read-only machine-state
+snapshot supplies both window order and `brave.N.counter` without activating an
+application or retaining an expiring Appium element handle.
+
+Brave starts with a fresh temporary profile on every run so session restoration
+cannot add stale windows. The guest must grant the Mac2/Xcode helper Automation
+access to System Events, Brave Browser, and Visual Studio Code. Screen Recording
+must be enabled for `sshd-keygen-wrapper` so the verifier can inspect global
+Core Graphics window order and capture all displays.
+
+Setup verification fails unless all of these measurable conditions hold:
+
+- The VM display count equals the number of JSON display arrays.
+- Every declared window exists exactly once and its center lies on its declared
+  display.
+- All declared Brave windows belong to one process.
+- Each display's measured front-to-back order equals the reverse of its JSON
+  back-to-front array.
+- The starred application's bundle ID is frontmost and the app's direct
+  `AXFocusedWindow` value identifies the starred window.
+- Every control referenced by an action or expectation resolves to exactly one
+  Accessibility element.
+
+The `setup-smoke.json` scenario passed end-to-end twice consecutively on the
+qualified macOS 14.6.1 VM. Both initial setups passed 15 of 15 checks. The
+executor positioned the pointer at the center of `brave.2.play`, measured a
+0.5-point x-axis error and zero y-axis error, and sent one VirtualHID click. The
+counter changed from `0` to `1`. Both post-action verifications passed 15 of 15
+checks: Brave was frontmost, `brave.2` was the AX-focused window, and D2
+remained `vscode`, `brave.1` front-to-back. After each run, the LaunchDaemon
+reported `state = not running` and last exit code `0`.
+
+## Capture visual evidence of every display
+
+From the repository root on the host, run:
+
+```sh
+./scripts/capture-vm-displays.sh
+```
+
+The default SSH host is `mac-vm`. An alternate host and output directory can
+be passed as the first and second arguments. The script queries `NSScreen` in
+the guest, runs the built-in `screencapture` command once for every reported
+display, and copies the results into an ignored `E2E/Artifacts/display-dump-*`
+directory. Each dump contains `display-1.png`, `display-2.png`, and so on, plus
+`displays.json` with names, IDs, frames, scale factors, and pixel dimensions.
+The guest must have a logged-in GUI session. Screen Recording must be enabled
+for the guest SSH process (`sshd-keygen-wrapper`); the script checks this before
+capturing and refuses to produce wallpaper-only screenshots when it is absent.
+
+## Record every display through Mac2
+
+Mac2's FFmpeg recorder accepts one AVFoundation screen device per Appium
+session. `scripts/record-vm-displays.sh` creates one session per reported screen,
+starts all recordings together, retrieves each H.264 MP4, and mosaics the files
+on the host with FFmpeg:
+
+```sh
+./scripts/record-vm-displays.sh mac-vm 5
+```
+
+The second argument is the recording duration in seconds. Output is written to
+an ignored `E2E/Artifacts/recording-*` directory containing `display-1.mp4`,
+`display-2.mp4`, `display-3.mp4`, `recordings.json`, and `mosaic.mp4`. The raw
+files preserve full Retina resolution; the mosaic scales each display to 720
+pixels high and arranges D1, D2, and D3 left-to-right. Recording is evidence
+only and never supplies test input or assertions.
+
+`scripts/setup-e2e-scenario.sh` uses the same recorder around scenario actions.
+Its artifact directory contains the three raw display MP4s, `recordings.json`,
+`mosaic.mp4`, `result.json`, and final per-display screenshots. The qualified
+action recording was 7.151 seconds at 10 FPS; its 3712×720 mosaic visibly
+showed `brave.2.counter` changing from `0` to `1`.
+
+The qualified macOS 14.6.1 probe reported these AVFoundation mappings:
+
+| Display | Device ID | Raw video | FPS | Verified duration |
+| --- | ---: | --- | ---: | ---: |
+| D1 | 0 | 2900×1812 | 10 | 5.1 s |
+| D2 | 1 | 5120×2880 | 10 | 5.1 s |
+| D3 | 2 | 5120×2880 | 10 | 5.6 s |
+
+The resulting mosaic was 3712×720, 10 FPS, and 5.1 seconds. A second recording
+of `setup-smoke.json` visibly showed VS Code over `brave.1` on D2 and
+`brave.2` on D3 in the expected left-to-right order.
+The standard macOS `Automation Running` overlay is part of the recording while
+Mac2 sessions are active. Scenario assertions must not depend on video pixels.
 
 ## Rejected input paths
 
@@ -324,8 +491,6 @@ process identifiers.
 
 ## Pending work
 
-- Package daemon and client startup into a narrowly scoped, reviewable
-  test-runner privilege design.
-- Automate window creation and placement for the canonical scenario matrix.
+- Expand the setup-smoke scenario into every canonical matrix placement.
 - Run the full JFC stopped/running canonical scenario matrix before expanding
   into fuzzing.

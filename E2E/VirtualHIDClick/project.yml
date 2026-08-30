@@ -10,8 +10,6 @@ targets:
       SYSTEM_HEADER_SEARCH_PATHS:
         - ../../vendor/vendor/include
         - ../../include
-    dependencies:
-      - sdk: ApplicationServices.framework
     type: tool
     platform: macOS
     deploymentTarget: 13.0
