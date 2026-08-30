@@ -1,4 +1,4 @@
-import {readdir, readFile} from "node:fs/promises";
+import {readdir, readFile, stat} from "node:fs/promises";
 import path from "node:path";
 
 const RUN_DIRECTORY = /^scenario-([0-9]{8}T[0-9]{6}Z)$/;
@@ -9,6 +9,20 @@ function embeddedJSON(value) {
 
 async function readJSON(filename) {
   return JSON.parse(await readFile(filename, "utf8"));
+}
+
+function timestampMilliseconds(value) {
+  const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  return Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
 }
 
 export function stateDifferences(expected = {}, actual = {}) {
@@ -64,10 +78,19 @@ export async function collectLatestRuns(artifactsDirectory, scenariosDirectory) 
     } catch {
       continue;
     }
+    let durationMs = result.durationMs;
+    if (!Number.isFinite(durationMs) || durationMs < 0) {
+      const startedAt = timestampMilliseconds(match[1]);
+      const artifactStats = await stat(path.join(artifactsDirectory, entry.name));
+      durationMs = startedAt === null
+        ? null
+        : Math.max(0, Math.round(artifactStats.mtimeMs - startedAt));
+    }
     const previous = latest.get(result.scenario);
     if (!previous || entry.name > previous.artifactDirectory) {
       latest.set(result.scenario, {
         artifactDirectory: entry.name,
+        durationMs,
         recordedAt: match[1],
         result,
         scenario,
@@ -101,30 +124,36 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
       }
       * { box-sizing: border-box; }
       body { background: var(--background); line-height: 1.45; margin: 0; padding: 32px; }
-      header, main { margin: 0 auto; max-width: 1500px; }
+      header, main { margin: 0 auto; max-width: 1280px; }
       header { align-items: end; display: flex; justify-content: space-between; }
       h1, h2, h3, p { margin: 0; }
       h1 { letter-spacing: -0.035em; }
       .muted { color: var(--muted); }
       #summary { font-size: 18px; margin-top: 8px; }
-      #runs { display: grid; gap: 24px; margin-top: 28px; }
-      article {
+      #runs { display: grid; gap: 10px; margin-top: 22px; }
+      .run-card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 14px;
+        border-radius: 10px;
         box-shadow: var(--shadow);
         overflow: hidden;
+        padding: 0;
       }
-      .heading { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 12px; padding: 20px; }
-      .heading .time { margin-left: auto; }
+      .run-card > .heading { align-items: center; display: flex; gap: 10px; list-style: none; padding: 13px 15px; }
+      .run-card > .heading::-webkit-details-marker { display: none; }
+      .run-card > .heading::before { color: var(--muted); content: "›"; font-size: 22px; line-height: 1; transform-origin: center; transition: transform 120ms ease; }
+      .run-card[open] > .heading { border-bottom: 1px solid var(--border); }
+      .run-card[open] > .heading::before { transform: rotate(90deg); }
+      .scenario-name { font-size: 16px; font-weight: 650; min-width: 0; }
+      .duration { color: var(--muted); margin-left: auto; white-space: nowrap; }
       .badge { border: 1px solid currentColor; border-radius: 999px; padding: 3px 9px; }
       .passed { color: var(--pass); }
       .failed { color: var(--fail); }
-      .content { display: grid; gap: 20px; padding: 20px; }
-      .state-block { background: var(--background); border-radius: 10px; padding: 14px; }
+      .content { display: grid; gap: 14px; padding: 14px; }
+      .state-block { background: var(--background); border-radius: 8px; padding: 11px; }
       .section-label { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
       .displays { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin-top: 10px; }
-      .display { border: 1px solid var(--border); border-radius: 8px; min-height: 78px; padding: 10px; }
+      .display { border: 1px solid var(--border); border-radius: 7px; min-height: 70px; padding: 8px; }
       .display-order { font-size: 12px; }
       .stack { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
       .window { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; }
@@ -132,10 +161,10 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
       .values { display: grid; gap: 6px 12px; grid-template-columns: max-content 1fr; margin-top: 10px; }
       .actions { display: grid; gap: 12px; }
       .action-step { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-      .action-heading { align-items: center; display: flex; gap: 10px; padding: 11px 14px; }
+      .action-heading { align-items: center; display: flex; gap: 10px; padding: 9px 11px; }
       .action-heading .badge { margin-left: auto; }
-      .action-body { border-top: 1px solid var(--border); display: grid; gap: 12px; grid-template-columns: minmax(180px, 0.36fr) minmax(0, 1fr); padding: 12px; }
-      .action-command { align-content: center; display: grid; gap: 8px; padding: 10px; }
+      .action-body { border-top: 1px solid var(--border); display: grid; gap: 10px; grid-template-columns: minmax(180px, 0.3fr) minmax(0, 1fr); padding: 10px; }
+      .action-command { align-content: center; display: grid; gap: 6px; padding: 8px; }
       code { background: var(--background); border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 3px 6px; }
       .diff { background: color-mix(in srgb, var(--fail) 8%, transparent); border-top: 1px solid var(--fail); color: var(--fail); display: grid; gap: 8px; padding: 12px 14px; }
       .diff-row { align-items: start; display: grid; gap: 8px; grid-template-columns: minmax(120px, 0.35fr) 1fr 1fr; }
@@ -150,11 +179,11 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
       figcaption { align-items: center; display: flex; justify-content: space-between; padding: 9px 11px; }
       .artifact-links { display: flex; flex-wrap: wrap; gap: 12px; }
       a { color: inherit; }
-      details { border-top: 1px solid var(--border); padding: 14px 20px; }
       .all-artifacts { border: 1px solid var(--border); border-radius: 8px; padding: 0; }
       .all-artifacts summary { padding: 11px 13px; }
       .all-artifacts[open] summary { border-bottom: 1px solid var(--border); }
       .all-artifacts-body { display: grid; gap: 12px; padding: 12px; }
+      .technical { border-top: 1px solid var(--border); padding: 12px 15px; }
       summary { cursor: pointer; }
       pre { overflow: auto; white-space: pre-wrap; }
       .empty { padding: 60px 0; text-align: center; }
@@ -163,8 +192,9 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
         header { align-items: start; flex-direction: column; gap: 8px; }
         .displays, .screenshots, .action-body { grid-template-columns: 1fr; }
         .diff-row { grid-template-columns: 1fr; }
-        .heading { align-items: start; flex-wrap: wrap; }
-        .heading .time { margin-left: 0; width: 100%; }
+        .run-card > .heading { align-items: center; flex-wrap: wrap; }
+        .scenario-name { flex: 1; }
+        .duration { margin-left: 32px; }
       }
     </style>
   </head>
@@ -183,10 +213,23 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
         "use strict";
         const data = JSON.parse(document.querySelector("#report-data").textContent);
         const runsElement = document.querySelector("#runs");
+        const formatDuration = (durationMs) => {
+          if (!Number.isFinite(durationMs)) return "unknown";
+          const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+          if (totalSeconds < 60) return totalSeconds + "s";
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          return minutes + "m " + String(seconds).padStart(2, "0") + "s";
+        };
         const passed = data.runs.filter(({result}) => result.status === "passed").length;
+        const totalDurationMs = data.runs.reduce(
+          (total, run) => total + (Number.isFinite(run.durationMs) ? run.durationMs : 0),
+          0,
+        );
         document.querySelector("#summary").textContent =
           data.runs.length + " scenarios · " + passed + " passed · "
-          + (data.runs.length - passed) + " failed";
+          + (data.runs.length - passed) + " failed · "
+          + formatDuration(totalDurationMs) + " total";
         document.querySelector("#generated").textContent =
           "Generated " + new Date(data.generatedAt).toLocaleString();
 
@@ -198,6 +241,42 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
         };
 
         const stateDifferences = ${stateDifferences.toString()};
+
+        const prettyWindowName = (windowName) => {
+          if (windowName === "vscode") return "VS Code";
+          const brave = /^brave\\.(\\d+)$/.exec(windowName);
+          if (brave) return "Brave " + brave[1];
+          return windowName.replaceAll("-", " ");
+        };
+
+        const scenarioLabel = (scenario) => {
+          const placements = new Map();
+          let activeWindow = null;
+          scenario.windows.forEach((windows, offset) => {
+            for (const markedWindow of windows) {
+              const active = markedWindow.endsWith("*");
+              const windowName = active ? markedWindow.slice(0, -1) : markedWindow;
+              placements.set(windowName, offset + 1);
+              if (active) activeWindow = windowName;
+            }
+          });
+          const firstClick = scenario.actions.find(({click}) => click)?.click;
+          const clickParts = firstClick?.split(".") ?? [];
+          const targetWindow = clickParts.slice(0, -1).join(".");
+          const activeDescription = activeWindow
+            ? prettyWindowName(activeWindow) + " active on D" + placements.get(activeWindow)
+            : "Initial state";
+          const actionDescription = targetWindow
+            ? "click " + prettyWindowName(targetWindow) + " on D" + placements.get(targetWindow)
+            : "inspect state";
+          const context = [...placements.entries()]
+            .filter(([windowName]) => windowName !== activeWindow && windowName !== targetWindow)
+            .map(([windowName, display]) => prettyWindowName(windowName) + " on D" + display);
+          const extraActions = Math.max(0, scenario.actions.length - 1);
+          return activeDescription + " → " + actionDescription
+            + (context.length > 0 ? " · " + context.join(", ") : "")
+            + (extraActions > 0 ? " · +" + extraActions + " actions" : "");
+        };
 
         const appendState = (parent, state) => {
           if (Array.isArray(state?.windows)) {
@@ -257,16 +336,22 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
         };
 
         for (const run of data.runs) {
-          const card = element("article");
-          const heading = element("div", "heading");
-          heading.append(element("h2", "", run.result.scenario));
+          const card = element("details", "run-card");
+          const heading = element("summary", "heading");
+          heading.append(element("span", "scenario-name", scenarioLabel(run.scenario)));
+          heading.append(element("span", "duration", formatDuration(run.durationMs)));
           heading.append(element(
             "span",
             "badge " + (run.result.status === "passed" ? "passed" : "failed"),
             run.result.status,
           ));
-          heading.append(element("span", "time muted", run.recordedAt));
           card.append(heading);
+          card.addEventListener("toggle", () => {
+            if (!card.open) return;
+            for (const other of runsElement.querySelectorAll(".run-card[open]")) {
+              if (other !== card) other.open = false;
+            }
+          });
 
           const content = element("div", "content");
           const initial = element("section", "state-block");
@@ -369,8 +454,13 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
           content.append(artifacts);
           card.append(content);
 
-          const technical = element("details");
+          const technical = element("details", "technical");
           technical.append(element("summary", "", "Technical details…"));
+          technical.append(element(
+            "p",
+            "muted",
+            run.result.scenario + " · " + run.recordedAt + " · " + formatDuration(run.durationMs),
+          ));
           technical.append(element("strong", "", "Scenario recipe"));
           technical.append(element("pre", "", JSON.stringify(run.scenario, null, 2)));
           technical.append(element("strong", "", "Result JSON"));

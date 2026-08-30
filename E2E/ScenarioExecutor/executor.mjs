@@ -25,9 +25,14 @@ const APP = {
   },
 };
 
-const CONTROL_LABEL = {
-  play: "JFC click target",
-  counter: "JFC accepted click count",
+const CONTROL = {
+  brave: {
+    play: "JFC click target",
+    counter: "JFC accepted click count",
+  },
+  vscode: {
+    surface: null,
+  },
 };
 
 const VIRTUAL_HID_CLICK = "/usr/local/libexec/jfc-e2e-virtual-hid-click";
@@ -109,8 +114,8 @@ function validateRuntimeVocabulary(scenario) {
     const references = [action.click, ...action.expect.values.map(({target}) => target)]
       .filter(Boolean);
     for (const reference of references) {
-      if (!CONTROL_LABEL[reference.control]) {
-        throw new Error(`unsupported control: ${reference.control}`);
+      if (!(reference.control in (CONTROL[reference.app] ?? {}))) {
+        throw new Error(`unsupported control: ${reference.key}`);
       }
     }
   }
@@ -166,6 +171,31 @@ async function terminateApplications(client, scenario) {
       if (attempt === 39) throw new Error(`${app} did not terminate`);
     }
   }
+}
+
+async function clearDesktop(client) {
+  const script = `
+tell application "System Events"
+  if exists application process "loginwindow" then
+    tell application process "loginwindow"
+      repeat with candidateWindow in every window
+        if exists button "Cancel" of candidateWindow then
+          click button "Cancel" of candidateWindow
+        end if
+      end repeat
+    end tell
+  end if
+
+  set clearableProcesses to {"Terminal", "TextEdit", "Activity Monitor", "App Store", "Safari", "Finder", "System Settings", "Preview", "Xcode", "Code"}
+  repeat with processName in clearableProcesses
+    if exists application process (processName as text) then
+      set visible of application process (processName as text) to false
+    end if
+  end repeat
+end tell
+`;
+  await runAppleScript(client, script);
+  await sleep(300);
 }
 
 async function launchVSCode(client) {
@@ -313,8 +343,31 @@ end tell
 }
 
 async function locateControl(client, reference) {
+  if (reference.app === "vscode" && reference.control === "surface") {
+    const rawFrame = await runAppleScript(client, `
+tell application "System Events"
+  tell application process "Code"
+    set windowPosition to position of window 1
+    set windowSize to size of window 1
+    return (item 1 of windowPosition as text) & "," & (item 2 of windowPosition as text) & "," & (item 1 of windowSize as text) & "," & (item 2 of windowSize as text)
+  end tell
+end tell
+`);
+    const [windowX, windowY, windowWidth, windowHeight] = rawFrame
+      .split(",")
+      .map((value) => Number(value.trim()));
+    if ([windowX, windowY, windowWidth, windowHeight].some((value) => !Number.isFinite(value))) {
+      throw new Error(`invalid AX window frame for vscode.surface: ${rawFrame}`);
+    }
+    const x = windowX + windowWidth * 0.25;
+    const y = windowY + windowHeight * 0.5;
+    return {
+      elementId: null,
+      rect: {x: x - 1, y: y - 1, width: 2, height: 2},
+    };
+  }
   if (reference.app !== "brave") {
-    throw new Error(`control lookup is not implemented for ${reference.app}`);
+    throw new Error(`control lookup is not implemented for ${reference.key}`);
   }
   const title = predicateString(`${reference.window} — JFC Click Fixture`);
   const windows = await client.findElements(
@@ -324,7 +377,7 @@ async function locateControl(client, reference) {
   if (windows.length !== 1) {
     throw new Error(`expected one AX window for ${reference.window}; found ${windows.length}`);
   }
-  const label = predicateString(CONTROL_LABEL[reference.control]);
+  const label = predicateString(CONTROL.brave[reference.control]);
   const controls = await client.findElements(
     "predicate string",
     `label == "${label}"`,
@@ -431,6 +484,13 @@ function identifyWindows(state, declared) {
     .filter(({key}) => key);
 }
 
+function unexpectedDesktopWindows(state, declared) {
+  return state.windows.filter((record) => {
+    if (record.bundleID === "com.apple.loginwindow") return true;
+    return record.layer === 0 && identifyWindow(record, declared) === null;
+  });
+}
+
 function observedControlValue(reference, identifiedWindows) {
   if (reference.app === "brave" && reference.control === "counter") {
     const window = identifiedWindows.find(({key}) => key === reference.window);
@@ -451,6 +511,14 @@ function verifyState(scenario, state, controls, focusedWindowTitle) {
     checks.push({name, pass, actual, expected});
   };
 
+  addCheck(
+    "unexpected on-screen window count",
+    unexpectedDesktopWindows(state, declared).length === 0,
+    unexpectedDesktopWindows(state, declared).map(
+      ({ownerName, title}) => title ? `${ownerName}: ${title}` : ownerName,
+    ),
+    [],
+  );
   addCheck(
     "display count",
     state.displays.length === scenario.windows.length,
@@ -529,6 +597,7 @@ function verifyState(scenario, state, controls, focusedWindowTitle) {
 }
 
 async function main() {
+  const scenarioStartedAt = Date.now();
   const options = parseArguments(process.argv.slice(2));
   const source = await readFile(options.scenarioPath, "utf8");
   const scenario = loadScenario(source);
@@ -545,6 +614,7 @@ async function main() {
       );
     }
     await terminateApplications(client, scenario);
+    await clearDesktop(client);
     const declared = allWindows(scenario.windows);
     if (declared.some(({app}) => app === "vscode")) await launchVSCode(client);
     await launchBraveWindows(
@@ -646,6 +716,7 @@ async function main() {
     const result = makeScenarioResult({
       scenarioName: path.basename(options.scenarioPath),
       scenarioSource: source,
+      durationMs: Date.now() - scenarioStartedAt,
       assertions,
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

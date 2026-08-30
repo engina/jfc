@@ -192,12 +192,38 @@ until reboot. The automated design positions and verifies the pointer from the
 logged-in test-user process, then uses the root-only client solely for the HID
 button-down/button-up reports.
 
-The first three-display JSON scenario now passes end-to-end with JFC running:
+The original three-display JSON setup-smoke scenario passes end-to-end with JFC running:
 VS Code starts active above `brave.1` on D2, one VirtualHID click targets
 `brave.2` on D3, the fixture counter changes from zero to one, `brave.2`
 becomes the focused Brave window, and `brave.1` remains behind VS Code. Mac2
-records every display around the action and supplies the post-action AX value;
-Core Graphics independently verifies display placement and global z-order.
+records every display around the action; the fixture's Core Graphics window
+title supplies the accepted-click count while Core Graphics independently
+verifies display placement and global z-order.
+
+The completed seven-placement VM suite passes six placements and repeatedly
+fails one: with VS Code active on D2, `brave.1` on D1, and `brave.2` on D3, the
+click makes `brave.2` frontmost and AX-focused but leaves its counter at `0`.
+The same result persisted after a deterministic pre-test cleanup dismissed a
+stale shutdown dialog and verified that no undeclared layer-zero window was
+visible. This is a reproducible VM regression; the corresponding physical
+three-display test remains necessary to establish whether it is also a product
+regression on real hardware.
+
+The same seven positive recipes were then rerun unchanged with JFC stopped.
+Every recipe produced the qualified negative-control signature: macOS activated
+and focused `brave.2` with the expected window order, but the fixture counter
+remained `0` instead of `1`. The six JFC-running passes therefore distinguish
+JFC-on from JFC-off behavior. The D2/D1/D3 regression remains at `0` in both
+states. Control artifacts and their separate report live below the ignored
+`E2E/Artifacts/jfc-off` directory, and the runner restores JFC on exit.
+
+Three JFC-running multi-action recipes also pass. Three consecutive clicks on
+the focused C2 fixture advance its counter exactly `1`, `2`, `3`. A C2 → C1 →
+C2 sequence advances both Brave counters while verifying the focused window and
+global order after every action. A five-action C2 → VS Code → C2 → VS Code → C2
+sequence advances C2 `1`, `2`, `3`, restores VS Code focus between target
+clicks, and keeps C1 behind VS Code. The VS Code target is an AX-derived point
+in its exposed window body; all action input still comes from VirtualHID.
 
 ## Direct distribution
 

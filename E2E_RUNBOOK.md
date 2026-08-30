@@ -345,18 +345,36 @@ Run the scenario from the host:
 ./scripts/setup-e2e-scenario.sh E2E/Scenarios/setup-smoke.json
 ```
 
-The initial suite deliberately contains only three high-value recipes from the
-original failing matrix:
+The placement suite contains all seven recipes from the original matrix:
 
 | Recipe | Initial state | Target |
 | --- | --- | --- |
 | `setup-smoke.json` | VSC D2, C1 D2 | C2 D3 |
+| `vscode-d2-c1-d2-c2-d2.json` | VSC D2, C1 D2 | C2 D2 |
+| `vscode-d2-c1-d1-c2-d3.json` | VSC D2, C1 D1 | C2 D3 |
+| `vscode-d2-c1-d1-c2-d1.json` | VSC D2, C1 D1 | C2 D1 |
 | `vscode-d2-c1-d2-c2-d1.json` | VSC D2, C1 D2 | C2 D1 |
+| `vscode-d2-c1-d3-c2-d1.json` | VSC D2, C1 D3 | C2 D1 |
 | `c1-active-d2-c2-d3.json` | C1 D2 | C2 D3 |
 
-All three require the clicked C2 control to operate once and become focused
-without raising C1. Remaining canonical placements and multi-action sequences
-are intentionally deferred until this small suite is stable.
+All seven require the clicked C2 control to operate once and become focused
+without raising C1 above an unrelated window. JFC-stopped control runs and
+multi-action sequences are separate coverage described below.
+
+Three additional recipes exercise action sequences:
+
+| Recipe | Actions | Measured purpose |
+| --- | --- | --- |
+| `repeat-c2-three-clicks.json` | C2 → C2 → C2 | Counter advances `1`, `2`, `3`; active-window pass-through stays exact |
+| `alternate-brave-windows.json` | C2 → C1 → C2 | Same-application window focus, ordering, and both counters after every click |
+| `repeat-vscode-c2-transitions.json` | C2 → VSC → C2 → VSC → C2 | Repeated cross-application activation while C1 remains behind VSC |
+
+`vscode.surface` is a deterministic point one quarter across and halfway down
+the VS Code window frame obtained through Accessibility. Appium/System Events
+only resolves that frame; the qualified VirtualHID client performs the click.
+The point lies in the exposed left portion of the canonical VS Code geometry,
+so it remains clickable even when a Brave window on D2 is above the overlapping
+right portion.
 
 The script copies the checked-in executor, scenario, and fixture to the guest;
 starts Appium when needed; builds, places, and stacks the requested windows;
@@ -369,14 +387,15 @@ clicks.
 
 `result.json` is deliberately compact. The scenario is the source of truth for
 setup, actions, and expected values, so the result contains only the scenario
-name and hash, overall status, and the normalized observed state at each action
-that declares expectations. It does not repeat setup, actions, expectations,
-artifact paths, Appium element identifiers, pointer coordinates, or raw Core
-Graphics window records. Setup verification remains a fail-fast precondition
-and is not reported as a test result. The fixture publishes its accepted-click
-count in both its control and window title, so the final read-only machine-state
-snapshot supplies both window order and `brave.N.counter` without activating an
-application or retaining an expiring Appium element handle.
+name and hash, overall status, total run duration, and the normalized observed
+state at each action that declares expectations. It does not repeat setup,
+actions, expectations, artifact paths, Appium element identifiers, pointer
+coordinates, or raw Core Graphics window records. Setup verification remains a
+fail-fast precondition and is not reported as a test result. The fixture
+publishes its accepted-click count in both its control and window title, so the
+final read-only machine-state snapshot supplies both window order and
+`brave.N.counter` without activating an application or retaining an expiring
+Appium element handle.
 
 An expectation mismatch still writes the compact observed state, marks its
 assertion and overall result `failed`, collects the recordings and screenshots,
@@ -391,6 +410,13 @@ cannot add stale windows. The guest must grant the Mac2/Xcode helper Automation
 access to System Events, Brave Browser, and Visual Studio Code. Screen Recording
 must be enabled for `sshd-keygen-wrapper` so the verifier can inspect global
 Core Graphics window order and capture all displays.
+
+Before constructing a scenario, the executor dismisses a visible login-window
+power dialog only through its non-destructive `Cancel` button and hides a fixed
+allowlist of ordinary setup applications. Setup then fails if any undeclared
+layer-zero application window remains on screen. This prevents a stale dialog
+or window from contaminating the click result while avoiding broad process
+termination.
 
 Setup verification fails unless all of these measurable conditions hold:
 
@@ -413,6 +439,47 @@ counter changed from `0` to `1`. Both post-action verifications passed 15 of 15
 checks: Brave was frontmost, `brave.2` was the AX-focused window, and D2
 remained `vscode`, `brave.1` front-to-back. After each run, the LaunchDaemon
 reported `state = not running` and last exit code `0`.
+
+The complete seven-placement suite has now executed on the same VM. Six
+placements passed. `vscode-d2-c1-d1-c2-d3.json` failed repeatedly, including
+after the desktop cleanup gate removed a stale shutdown dialog: `brave.2`
+became the frontmost and AX-focused window on D3, but its accepted-click counter
+remained `0`. The latest clean reruns therefore identify a repeatable automated
+regression rather than a setup failure. Physical three-display hardware
+verification remains required before treating the VM result as a product
+regression.
+
+### JFC-off negative controls
+
+Run the unchanged positive recipes with JFC deliberately stopped:
+
+```sh
+./scripts/verify-e2e-jfc-off.sh
+```
+
+The control runner records under `E2E/Artifacts/jfc-off`, leaving the normal
+latest-run report untouched. It remembers whether JFC was initially running,
+stops it, runs all seven positive recipes, and restores it from
+`/Applications/JFC.app` on every exit path. A control passes only when the
+ordinary scenario result fails for one exact reason: C2 becomes active with the
+expected window order, but its accepted-click counter remains `0` instead of
+the positive expectation `1`. Setup failures, unexpected window changes, an
+accepted click, stale scenario contents, and extra observed fields all reject
+the control.
+
+All seven JFC-off controls passed this qualification on the macOS 14.6.1 VM.
+For six placements, the paired JFC-running recipe accepts one click while the
+JFC-stopped control accepts none, proving that those tests exercise JFC's
+behavior. `vscode-d2-c1-d1-c2-d3.json` accepts no click in either state and is
+therefore the repeatable regression identified above, not a passing positive
+case.
+
+All three multi-action recipes passed with JFC running. The repeated-target
+recipe accepted three clicks exactly once each. The Brave alternation recipe
+preserved the asserted per-display order while its counters advanced C2 `1`,
+C1 `1`, then C2 `2`. The cross-application recipe completed five physical HID
+actions with C2 advancing `1`, `2`, `3` and VS Code regaining focus between
+them without raising C1.
 
 ## Capture visual evidence of every display
 
@@ -458,12 +525,14 @@ showed `brave.2.counter` changing from `0` to `1`.
 
 After every completed test scenario, the runner regenerates
 `E2E/Artifacts/report.html`. This dependency-free static page embeds the latest
-valid recipe and compact result for each scenario. Each card presents the
-initial state, action, expected output state, pass/fail result, and mosaic video.
-Other recordings and final screenshots are collapsed under `All artifacts…`.
-Failed assertions show their expected-versus-actual differences in red. It can
-be opened directly from disk; no HTTP server or runtime JSON fetch is required.
-Rebuild it manually with:
+valid recipe and compact result for each scenario. The page header reports the
+aggregate duration of the displayed runs. Each scenario is a collapsed
+accordion row whose title contains a human-readable test name, duration, and
+pass/fail status; opening it shows the initial state, action, expected output
+state, result, and mosaic video. Other recordings and final screenshots are
+collapsed under `All artifacts…`. Failed assertions show their
+expected-versus-actual differences in red. It can be opened directly from disk;
+no runtime JSON fetch is required. Rebuild it manually with:
 
 ```sh
 node scripts/generate-e2e-report.mjs
@@ -504,7 +573,7 @@ same canonical scenario matrix defined above.
 
 | Guest macOS | Provisioning | Virtual HID | Entire canonical matrix | Physical acceptance |
 | --- | --- | --- | --- | --- |
-| 14.6.1 (23G93) | Passed | Passed | Pending | Pending |
+| 14.6.1 (23G93) | Passed | Passed | 6 passed, 1 failed | Pending |
 | 15.x | Pending | Pending | Pending | Pending |
 | 26.x | Pending | Pending | Pending | Pending |
 
@@ -525,6 +594,5 @@ process identifiers.
 
 ## Pending work
 
-- Expand the setup-smoke scenario into every canonical matrix placement.
-- Run the full JFC stopped/running canonical scenario matrix before expanding
+- Run the same canonical scenarios on macOS 15 and macOS 26 before expanding
   into fuzzing.

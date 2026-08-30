@@ -1,0 +1,42 @@
+{
+  "windows": [
+    [],
+    ["brave.1", "vscode*"],
+    ["brave.2"]
+  ],
+  "actions": [
+    {
+      "click": "brave.2.play",
+      "expect": {
+        "windows": [
+          [],
+          ["brave.1", "vscode"],
+          ["brave.2*"]
+        ],
+        "brave.2.counter": 1
+      }
+    },
+    {
+      "click": "brave.2.play",
+      "expect": {
+        "windows": [
+          [],
+          ["brave.1", "vscode"],
+          ["brave.2*"]
+        ],
+        "brave.2.counter": 2
+      }
+    },
+    {
+      "click": "brave.2.play",
+      "expect": {
+        "windows": [
+          [],
+          ["brave.1", "vscode"],
+          ["brave.2*"]
+        ],
+        "brave.2.counter": 3
+      }
+    }
+  ]
+}

@@ -38,6 +38,7 @@ test("builds a compact result without duplicated scenario internals", () => {
   const result = makeScenarioResult({
     scenarioName: "setup-smoke.json",
     scenarioSource: "{}\n",
+    durationMs: 12_345,
     assertions: [
       {
         afterAction: 1,
@@ -55,9 +56,11 @@ test("builds a compact result without duplicated scenario internals", () => {
     "scenario",
     "scenarioSha256",
     "status",
+    "durationMs",
     "assertions",
   ]);
   assert.equal(result.scenarioSha256.length, 64);
+  assert.equal(result.durationMs, 12_345);
   assert.equal(result.assertions[0].state["brave.2.counter"], 1);
   for (const redundant of [
     "setup",
@@ -75,6 +78,7 @@ test("marks a compact result failed when an assertion fails", () => {
   const result = makeScenarioResult({
     scenarioName: "failed.json",
     scenarioSource: "{}\n",
+    durationMs: 2_500,
     assertions: [
       {
         afterAction: 1,

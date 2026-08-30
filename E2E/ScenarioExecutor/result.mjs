@@ -15,12 +15,18 @@ export function normalizeWindowState(displays, identifiedWindows, activeWindow) 
   );
 }
 
-export function makeScenarioResult({scenarioName, scenarioSource, assertions}) {
+export function makeScenarioResult({
+  scenarioName,
+  scenarioSource,
+  durationMs,
+  assertions,
+}) {
   return {
     schemaVersion: 1,
     scenario: scenarioName,
     scenarioSha256: createHash("sha256").update(scenarioSource).digest("hex"),
     status: assertions.every(({status}) => status === "passed") ? "passed" : "failed",
+    durationMs,
     assertions,
   };
 }

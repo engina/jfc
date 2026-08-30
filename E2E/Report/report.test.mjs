@@ -36,6 +36,7 @@ test("renders a self-contained static report", () => {
     [
       {
         artifactDirectory: "scenario-20260830T052730Z",
+        durationMs: 12_345,
         recordedAt: "20260830T052730Z",
         scenario: {
           windows: [[], ["vscode*"], ["brave.2"]],
@@ -74,6 +75,10 @@ test("renders a self-contained static report", () => {
   assert.match(html, /Expected output state/);
   assert.match(html, /Click /);
   assert.match(html, /All artifacts…/);
+  assert.match(html, /run-card/);
+  assert.match(html, /scenarioLabel/);
+  assert.match(html, /formatDuration/);
+  assert.match(html, /total/);
   assert.match(html, /Mismatch/);
   assert.match(html, /Expected/);
   assert.match(html, /Actual/);

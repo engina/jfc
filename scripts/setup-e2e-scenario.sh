@@ -6,12 +6,14 @@ JFC_REPOSITORY_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 JFC_SCENARIO="${1:-$JFC_REPOSITORY_ROOT/E2E/Scenarios/setup-smoke.json}"
 JFC_VM_HOST="${2:-mac-vm}"
 JFC_TIMESTAMP=$(/bin/date -u '+%Y%m%dT%H%M%SZ')
-JFC_ARTIFACT_DIR="$JFC_REPOSITORY_ROOT/E2E/Artifacts/scenario-$JFC_TIMESTAMP"
+JFC_ARTIFACT_ROOT="${JFC_E2E_ARTIFACTS_DIR:-$JFC_REPOSITORY_ROOT/E2E/Artifacts}"
+JFC_ARTIFACT_DIR="$JFC_ARTIFACT_ROOT/scenario-$JFC_TIMESTAMP"
 JFC_GUEST_ROOT="jfc-e2e/repo"
 JFC_SCENARIO_NAME=$(/usr/bin/basename "$JFC_SCENARIO")
 JFC_GUEST_RECORDINGS="jfc-e2e/recordings/scenario-$JFC_TIMESTAMP"
 JFC_STARTED_APPIUM_PID=''
 JFC_SCENARIO_STATUS='passed'
+JFC_STARTED_AT_MS=$(/opt/homebrew/bin/node -e 'process.stdout.write(String(Date.now()))')
 
 if [ ! -f "$JFC_SCENARIO" ]; then
   echo "scenario not found: $JFC_SCENARIO" >&2
@@ -73,7 +75,7 @@ if ! ssh "$JFC_VM_HOST" \
     --fixture '$JFC_GUEST_ROOT/E2E/Fixture/index.html' \
     --recordings '$JFC_GUEST_RECORDINGS'" \
   > "$JFC_ARTIFACT_DIR/result.json"; then
-  if /opt/homebrew/bin/node -e '
+  if [ -s "$JFC_ARTIFACT_DIR/result.json" ] && /opt/homebrew/bin/node -e '
     const result = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
     if (result.status !== "failed") process.exit(1);
   ' "$JFC_ARTIFACT_DIR/result.json"; then
@@ -98,15 +100,25 @@ scp "$JFC_VM_HOST:$JFC_GUEST_RECORDINGS/"'*' "$JFC_ARTIFACT_DIR/"
 "$JFC_REPOSITORY_ROOT/scripts/capture-vm-displays.sh" \
   "$JFC_VM_HOST" "$JFC_ARTIFACT_DIR/displays"
 
+JFC_FINISHED_AT_MS=$(/opt/homebrew/bin/node -e 'process.stdout.write(String(Date.now()))')
+JFC_DURATION_MS=$((JFC_FINISHED_AT_MS - JFC_STARTED_AT_MS))
+/opt/homebrew/bin/node -e '
+  const fs = require("node:fs");
+  const filename = process.argv[1];
+  const result = JSON.parse(fs.readFileSync(filename, "utf8"));
+  result.durationMs = Number(process.argv[2]);
+  fs.writeFileSync(filename, `${JSON.stringify(result, null, 2)}\n`);
+' "$JFC_ARTIFACT_DIR/result.json" "$JFC_DURATION_MS"
+
 /opt/homebrew/bin/node "$JFC_REPOSITORY_ROOT/scripts/generate-e2e-report.mjs" \
-  "$JFC_REPOSITORY_ROOT/E2E/Artifacts" \
-  "$JFC_REPOSITORY_ROOT/E2E/Artifacts/report.html"
+  "$JFC_ARTIFACT_ROOT" \
+  "$JFC_ARTIFACT_ROOT/report.html"
 
 echo
 echo "Scenario $JFC_SCENARIO_STATUS with multi-display recording:"
 echo "$JFC_ARTIFACT_DIR"
 echo "Report:"
-echo "$JFC_REPOSITORY_ROOT/E2E/Artifacts/report.html"
+echo "$JFC_ARTIFACT_ROOT/report.html"
 
 if [ "$JFC_SCENARIO_STATUS" = 'failed' ]; then
   exit 1
