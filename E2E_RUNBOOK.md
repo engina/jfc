@@ -345,6 +345,19 @@ Run the scenario from the host:
 ./scripts/setup-e2e-scenario.sh E2E/Scenarios/setup-smoke.json
 ```
 
+The initial suite deliberately contains only three high-value recipes from the
+original failing matrix:
+
+| Recipe | Initial state | Target |
+| --- | --- | --- |
+| `setup-smoke.json` | VSC D2, C1 D2 | C2 D3 |
+| `vscode-d2-c1-d2-c2-d1.json` | VSC D2, C1 D2 | C2 D1 |
+| `c1-active-d2-c2-d3.json` | C1 D2 | C2 D3 |
+
+All three require the clicked C2 control to operate once and become focused
+without raising C1. Remaining canonical placements and multi-action sequences
+are intentionally deferred until this small suite is stable.
+
 The script copies the checked-in executor, scenario, and fixture to the guest;
 starts Appium when needed; builds, places, and stacks the requested windows;
 selects the starred window; resolves every referenced control through Mac2
@@ -364,6 +377,14 @@ and is not reported as a test result. The fixture publishes its accepted-click
 count in both its control and window title, so the final read-only machine-state
 snapshot supplies both window order and `brave.N.counter` without activating an
 application or retaining an expiring Appium element handle.
+
+An expectation mismatch still writes the compact observed state, marks its
+assertion and overall result `failed`, collects the recordings and screenshots,
+regenerates the report, and makes the host runner exit nonzero. This lets the
+report derive a focused expected-versus-actual diff from the unchanged scenario
+recipe without duplicating expectations in `result.json`. Failures that occur
+before the initial setup is verified remain setup failures and do not produce a
+test result.
 
 Brave starts with a fresh temporary profile on every run so session restoration
 cannot add stale windows. The guest must grant the Mac2/Xcode helper Automation
@@ -434,6 +455,19 @@ Its artifact directory contains the three raw display MP4s, `recordings.json`,
 `mosaic.mp4`, `result.json`, and final per-display screenshots. The qualified
 action recording was 7.151 seconds at 10 FPS; its 3712×720 mosaic visibly
 showed `brave.2.counter` changing from `0` to `1`.
+
+After every completed test scenario, the runner regenerates
+`E2E/Artifacts/report.html`. This dependency-free static page embeds the latest
+valid recipe and compact result for each scenario. Each card presents the
+initial state, action, expected output state, pass/fail result, and mosaic video.
+Other recordings and final screenshots are collapsed under `All artifacts…`.
+Failed assertions show their expected-versus-actual differences in red. It can
+be opened directly from disk; no HTTP server or runtime JSON fetch is required.
+Rebuild it manually with:
+
+```sh
+node scripts/generate-e2e-report.mjs
+```
 
 The qualified macOS 14.6.1 probe reported these AVFoundation mappings:
 

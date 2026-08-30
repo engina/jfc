@@ -70,3 +70,20 @@ test("builds a compact result without duplicated scenario internals", () => {
     assert.equal(redundant in result, false);
   }
 });
+
+test("marks a compact result failed when an assertion fails", () => {
+  const result = makeScenarioResult({
+    scenarioName: "failed.json",
+    scenarioSource: "{}\n",
+    assertions: [
+      {
+        afterAction: 1,
+        status: "failed",
+        state: {windows: [["brave.2"], ["vscode*"], []]},
+      },
+    ],
+  });
+
+  assert.equal(result.status, "failed");
+  assert.deepEqual(result.assertions[0].state.windows, [["brave.2"], ["vscode*"], []]);
+});

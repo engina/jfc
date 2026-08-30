@@ -11,6 +11,7 @@ JFC_GUEST_ROOT="jfc-e2e/repo"
 JFC_SCENARIO_NAME=$(/usr/bin/basename "$JFC_SCENARIO")
 JFC_GUEST_RECORDINGS="jfc-e2e/recordings/scenario-$JFC_TIMESTAMP"
 JFC_STARTED_APPIUM_PID=''
+JFC_SCENARIO_STATUS='passed'
 
 if [ ! -f "$JFC_SCENARIO" ]; then
   echo "scenario not found: $JFC_SCENARIO" >&2
@@ -66,12 +67,22 @@ if ! ssh "$JFC_VM_HOST" \
   done
 fi
 
-ssh "$JFC_VM_HOST" \
+if ! ssh "$JFC_VM_HOST" \
   "/opt/homebrew/bin/node '$JFC_GUEST_ROOT/E2E/ScenarioExecutor/executor.mjs' \
     '$JFC_GUEST_ROOT/E2E/Scenarios/$JFC_SCENARIO_NAME' \
     --fixture '$JFC_GUEST_ROOT/E2E/Fixture/index.html' \
     --recordings '$JFC_GUEST_RECORDINGS'" \
-  > "$JFC_ARTIFACT_DIR/result.json"
+  > "$JFC_ARTIFACT_DIR/result.json"; then
+  if /opt/homebrew/bin/node -e '
+    const result = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+    if (result.status !== "failed") process.exit(1);
+  ' "$JFC_ARTIFACT_DIR/result.json"; then
+    JFC_SCENARIO_STATUS='failed'
+  else
+    echo "scenario executor failed before producing a test result" >&2
+    exit 1
+  fi
+fi
 
 scp "$JFC_VM_HOST:$JFC_GUEST_RECORDINGS/"'*' "$JFC_ARTIFACT_DIR/"
 
@@ -87,6 +98,16 @@ scp "$JFC_VM_HOST:$JFC_GUEST_RECORDINGS/"'*' "$JFC_ARTIFACT_DIR/"
 "$JFC_REPOSITORY_ROOT/scripts/capture-vm-displays.sh" \
   "$JFC_VM_HOST" "$JFC_ARTIFACT_DIR/displays"
 
+/opt/homebrew/bin/node "$JFC_REPOSITORY_ROOT/scripts/generate-e2e-report.mjs" \
+  "$JFC_REPOSITORY_ROOT/E2E/Artifacts" \
+  "$JFC_REPOSITORY_ROOT/E2E/Artifacts/report.html"
+
 echo
-echo "Scenario passed with multi-display recording:"
+echo "Scenario $JFC_SCENARIO_STATUS with multi-display recording:"
 echo "$JFC_ARTIFACT_DIR"
+echo "Report:"
+echo "$JFC_REPOSITORY_ROOT/E2E/Artifacts/report.html"
+
+if [ "$JFC_SCENARIO_STATUS" = 'failed' ]; then
+  exit 1
+fi

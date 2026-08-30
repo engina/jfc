@@ -449,7 +449,6 @@ function verifyState(scenario, state, controls, focusedWindowTitle) {
   const checks = [];
   const addCheck = (name, pass, actual, expected) => {
     checks.push({name, pass, actual, expected});
-    if (!pass) throw new Error(`${name}: expected ${expected}; got ${actual}`);
   };
 
   addCheck(
@@ -498,9 +497,11 @@ function verifyState(scenario, state, controls, focusedWindowTitle) {
   }
 
   const active = declared.find(({active}) => active);
+  const expectedApplicationIsFrontmost =
+    state.frontmostBundleID === APP[active.app].bundleID;
   addCheck(
     "frontmost application",
-    state.frontmostBundleID === APP[active.app].bundleID,
+    expectedApplicationIsFrontmost,
     state.frontmostBundleID,
     APP[active.app].bundleID,
   );
@@ -520,7 +521,11 @@ function verifyState(scenario, state, controls, focusedWindowTitle) {
     Object.keys(controls).length,
     "> 0",
   );
-  return {checks, windows: identified, focusedWindow};
+  return {
+    checks,
+    windows: identified,
+    focusedWindow: expectedApplicationIsFrontmost ? focusedWindow : null,
+  };
 }
 
 async function main() {
@@ -553,12 +558,18 @@ async function main() {
     const active = declared.find(({active}) => active);
     const focusedWindowTitle = await queryFocusedWindowTitle(client, active);
     const state = readMachineState();
-    verifyState(
+    const setupVerification = verifyState(
       scenario,
       state,
       controls,
       focusedWindowTitle,
     );
+    const failedSetupCheck = setupVerification.checks.find(({pass}) => !pass);
+    if (failedSetupCheck) {
+      throw new Error(
+        `${failedSetupCheck.name}: expected ${failedSetupCheck.expected}; got ${failedSetupCheck.actual}`,
+      );
+    }
     if (options.recordingsPath) {
       recorder = new MultiDisplayRecorder({appiumUrl: options.appiumUrl});
       await recorder.open();
@@ -578,6 +589,7 @@ async function main() {
       }
 
       const actualState = {};
+      let assertionPassed = true;
       let postActionState = null;
       let identifiedPostActionWindows = null;
       if (action.expect.windows) {
@@ -591,6 +603,7 @@ async function main() {
           expectedFocusedTitle,
         );
         identifiedPostActionWindows = windowVerification.windows;
+        assertionPassed = windowVerification.checks.every(({pass}) => pass);
         actualState.windows = normalizeWindowState(
           action.expect.windows,
           windowVerification.windows,
@@ -605,12 +618,15 @@ async function main() {
           allWindows(scenario.windows),
         );
         for (const {target, expected} of action.expect.values) {
-          const actual = observedControlValue(target, identifiedPostActionWindows);
+          let actual = null;
+          try {
+            actual = observedControlValue(target, identifiedPostActionWindows);
+          } catch {
+            assertionPassed = false;
+          }
           actualState[target.key] = actual;
           if (actual !== expected) {
-            throw new Error(
-              `${target.key}: expected ${JSON.stringify(expected)}; got ${JSON.stringify(actual)}`,
-            );
+            assertionPassed = false;
           }
         }
       }
@@ -618,7 +634,7 @@ async function main() {
       if (action.expect.windows || action.expect.values.length > 0) {
         assertions.push({
           afterAction: index + 1,
-          status: "passed",
+          status: assertionPassed ? "passed" : "failed",
           state: actualState,
         });
       }
@@ -633,6 +649,7 @@ async function main() {
       assertions,
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (result.status === "failed") process.exitCode = 1;
   } finally {
     try {
       if (virtualHIDDaemonStarted) await stopVirtualHIDDaemon();

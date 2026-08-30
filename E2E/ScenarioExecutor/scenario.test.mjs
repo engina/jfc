@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readdir, readFile} from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -65,4 +66,19 @@ test("parses indexed and implicit first-window controls", () => {
 
 test("rejects invalid JSON", () => {
   assert.throws(() => loadScenario("windows: []"), ScenarioValidationError);
+});
+
+test("loads the three initial scenario recipes", async () => {
+  const directory = new URL("../Scenarios/", import.meta.url);
+  const filenames = (await readdir(directory))
+    .filter((filename) => filename.endsWith(".json"))
+    .sort();
+  assert.deepEqual(filenames, [
+    "c1-active-d2-c2-d3.json",
+    "setup-smoke.json",
+    "vscode-d2-c1-d2-c2-d1.json",
+  ]);
+  for (const filename of filenames) {
+    loadScenario(await readFile(new URL(filename, directory), "utf8"));
+  }
 });
