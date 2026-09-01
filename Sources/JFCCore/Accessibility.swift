@@ -29,10 +29,28 @@ public enum AccessibilityPermission {
   }
 }
 
+struct FocusStep {
+  let phase: String
+  let operation: String
+  let result: String
+  let startedUptimeNanoseconds: UInt64
+  let finishedUptimeNanoseconds: UInt64
+
+  var elapsedMilliseconds: Double {
+    Double(finishedUptimeNanoseconds - startedUptimeNanoseconds) / 1_000_000
+  }
+
+  var logDescription: String {
+    "\(operation)=\(result)"
+  }
+}
+
 struct FocusAttempt {
-  let steps: [String]
+  let steps: [FocusStep]
   let elapsedMilliseconds: Double
 }
+
+typealias FocusStepObserver = (FocusStep) -> Void
 
 enum WindowFocusState {
   case focused
@@ -66,33 +84,84 @@ final class AccessibilityFocuser {
     return CFEqual(targetWindow, focusedWindow) ? .focused : .unfocused
   }
 
-  func focusWindow(_ target: ResolvedTarget) -> FocusAttempt {
+  func focusWindow(
+    _ target: ResolvedTarget,
+    afterStep: FocusStepObserver? = nil
+  ) -> FocusAttempt {
     let started = DispatchTime.now().uptimeNanoseconds
-    var steps: [String] = []
+    var steps: [FocusStep] = []
 
-    appendWindowFocusSteps(target.window, to: &steps)
+    appendWindowFocusSteps(
+      target.window,
+      phase: "activeApplicationWindow",
+      afterStep: afterStep,
+      to: &steps
+    )
 
     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)
   }
 
-  func focus(_ target: ResolvedTarget) -> FocusAttempt {
+  func focus(
+    _ target: ResolvedTarget,
+    afterStep: FocusStepObserver? = nil
+  ) -> FocusAttempt {
     let started = DispatchTime.now().uptimeNanoseconds
-    var steps: [String] = []
+    var steps: [FocusStep] = []
 
     let applicationElement = AXUIElementCreateApplication(target.pid)
     AXUIElementSetMessagingTimeout(applicationElement, 0.1)
 
-    appendWindowFocusSteps(target.window, includeFocused: false, to: &steps)
+    appendWindowFocusSteps(
+      target.window,
+      includeFocused: false,
+      phase: "beforeApplicationActivation",
+      afterStep: afterStep,
+      to: &steps
+    )
 
     if let application = NSRunningApplication(processIdentifier: target.pid) {
+      let stepStarted = DispatchTime.now().uptimeNanoseconds
       let activated = application.activate(options: [])
-      steps.append("AppKit activate=\(activated ? "success" : "failure")")
+      append(
+        FocusStep(
+          phase: "applicationActivation",
+          operation: "AppKit activate",
+          result: activated ? "success" : "failure",
+          startedUptimeNanoseconds: stepStarted,
+          finishedUptimeNanoseconds: DispatchTime.now().uptimeNanoseconds
+        ),
+        afterStep: afterStep,
+        to: &steps
+      )
     } else {
-      steps.append("AppKit application=unavailable")
+      let now = DispatchTime.now().uptimeNanoseconds
+      append(
+        FocusStep(
+          phase: "applicationActivation",
+          operation: "AppKit application",
+          result: "unavailable",
+          startedUptimeNanoseconds: now,
+          finishedUptimeNanoseconds: now
+        ),
+        afterStep: afterStep,
+        to: &steps
+      )
     }
 
-    appendFocusedStep(target.window, to: &steps)
+    appendWindowFocusSteps(
+      target.window,
+      includeFocused: false,
+      phase: "afterApplicationActivation",
+      afterStep: afterStep,
+      to: &steps
+    )
+    appendFocusedStep(
+      target.window,
+      phase: "afterApplicationActivation",
+      afterStep: afterStep,
+      to: &steps
+    )
 
     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     return FocusAttempt(steps: steps, elapsedMilliseconds: elapsed)
@@ -101,37 +170,102 @@ final class AccessibilityFocuser {
   private func appendWindowFocusSteps(
     _ window: AXUIElement?,
     includeFocused: Bool = true,
-    to steps: inout [String]
+    phase: String,
+    afterStep: FocusStepObserver?,
+    to steps: inout [FocusStep]
   ) {
     guard let window else {
-      steps.append("AX window=unavailable")
+      let now = DispatchTime.now().uptimeNanoseconds
+      append(
+        FocusStep(
+          phase: phase,
+          operation: "AX window",
+          result: "unavailable",
+          startedUptimeNanoseconds: now,
+          finishedUptimeNanoseconds: now
+        ),
+        afterStep: afterStep,
+        to: &steps
+      )
       return
     }
 
+    let mainStarted = DispatchTime.now().uptimeNanoseconds
     let mainError = AXUIElementSetAttributeValue(
       window,
       kAXMainAttribute as CFString,
       kCFBooleanTrue
     )
-    steps.append("AX main=\(describe(mainError))")
+    append(
+      FocusStep(
+        phase: phase,
+        operation: "AX main",
+        result: describe(mainError),
+        startedUptimeNanoseconds: mainStarted,
+        finishedUptimeNanoseconds: DispatchTime.now().uptimeNanoseconds
+      ),
+      afterStep: afterStep,
+      to: &steps
+    )
 
+    let raiseStarted = DispatchTime.now().uptimeNanoseconds
     let raiseError = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-    steps.append("AX raise=\(describe(raiseError))")
+    append(
+      FocusStep(
+        phase: phase,
+        operation: "AX raise",
+        result: describe(raiseError),
+        startedUptimeNanoseconds: raiseStarted,
+        finishedUptimeNanoseconds: DispatchTime.now().uptimeNanoseconds
+      ),
+      afterStep: afterStep,
+      to: &steps
+    )
 
     if includeFocused {
-      appendFocusedStep(window, to: &steps)
+      appendFocusedStep(
+        window,
+        phase: phase,
+        afterStep: afterStep,
+        to: &steps
+      )
     }
   }
 
-  private func appendFocusedStep(_ window: AXUIElement?, to steps: inout [String]) {
+  private func appendFocusedStep(
+    _ window: AXUIElement?,
+    phase: String,
+    afterStep: FocusStepObserver?,
+    to steps: inout [FocusStep]
+  ) {
     guard let window else { return }
 
+    let focusedStarted = DispatchTime.now().uptimeNanoseconds
     let focusedError = AXUIElementSetAttributeValue(
       window,
       kAXFocusedAttribute as CFString,
       kCFBooleanTrue
     )
-    steps.append("AX focused=\(describe(focusedError))")
+    append(
+      FocusStep(
+        phase: phase,
+        operation: "AX focused",
+        result: describe(focusedError),
+        startedUptimeNanoseconds: focusedStarted,
+        finishedUptimeNanoseconds: DispatchTime.now().uptimeNanoseconds
+      ),
+      afterStep: afterStep,
+      to: &steps
+    )
+  }
+
+  private func append(
+    _ step: FocusStep,
+    afterStep: FocusStepObserver?,
+    to steps: inout [FocusStep]
+  ) {
+    steps.append(step)
+    afterStep?(step)
   }
 
   private func describe(_ error: AXError) -> String {

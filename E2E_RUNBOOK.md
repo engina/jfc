@@ -1,9 +1,9 @@
 # JFC macOS VM E2E runbook
 
 This runbook records the reproducible VM environment for JFC. The virtual HID
-input transport is qualified on macOS 14.6.1; the complete automated scenario
-matrix is not yet implemented. Automated input supplements, but never replaces,
-the physical regression test in `AGENTS.md`.
+input transport and 12-scenario automated matrix are qualified on macOS 14.6.1.
+Automated input supplements, but never replaces, the physical regression test
+in `AGENTS.md`.
 
 ## Qualified baseline
 
@@ -99,6 +99,17 @@ Run every placement as an A/B pair:
 - JFC stopped: the first click activates C2 but does not operate its control.
 - JFC running: that same single click activates C2 and operates the control
   exactly once.
+
+The matrix also keeps JFC's control window visible while VS Code is active and
+clicks C2 from another display. This guards the app lifecycle regression in
+which a regular activation policy caused the first click to be swallowed. Four
+multi-action recipes cover repeated C2 clicks, alternation between two Brave
+windows, and repeated VS Code ↔ C2 transitions in two display arrangements.
+Run all 12 recipes with:
+
+```sh
+./scripts/run-e2e-matrix.sh mac-vm
+```
 
 For the whole matrix, also verify no focus change occurs without a left click,
 C1 is not raised accidentally, mouse-up is unchanged, double-click and hold
@@ -361,13 +372,24 @@ All seven require the clicked C2 control to operate once and become focused
 without raising C1 above an unrelated window. JFC-stopped control runs and
 multi-action sequences are separate coverage described below.
 
-Three additional recipes exercise action sequences:
+Four additional recipes exercise action sequences:
 
 | Recipe | Actions | Measured purpose |
 | --- | --- | --- |
 | `repeat-c2-three-clicks.json` | C2 → C2 → C2 | Counter advances `1`, `2`, `3`; active-window pass-through stays exact |
 | `alternate-brave-windows.json` | C2 → C1 → C2 | Same-application window focus, ordering, and both counters after every click |
 | `repeat-vscode-c2-transitions.json` | C2 → VSC → C2 → VSC → C2 | Repeated cross-application activation while C1 remains behind VSC |
+| `repeat-vscode-d1-d3-transitions.json` | C2 → VSC → C2 → VSC → C2 | Three repetitions of the fixed primary-display C1 / cross-display C2 regression |
+
+One regression recipe keeps JFC's own control window visibly open on D1 while
+VS Code is active on D2 and the target Brave window is on D3. It verifies that
+the target operates once and that the JFC window does not alter the declared
+ordering. Run all seven placements, this visible-window regression, and all
+four multi-action recipes with:
+
+```sh
+./scripts/run-e2e-matrix.sh
+```
 
 `vscode.surface` is a deterministic point one quarter across and halfway down
 the VS Code window frame obtained through Accessibility. Appium/System Events
@@ -440,14 +462,32 @@ checks: Brave was frontmost, `brave.2` was the AX-focused window, and D2
 remained `vscode`, `brave.1` front-to-back. After each run, the LaunchDaemon
 reported `state = not running` and last exit code `0`.
 
-The complete seven-placement suite has now executed on the same VM. Six
-placements passed. `vscode-d2-c1-d1-c2-d3.json` failed repeatedly, including
-after the desktop cleanup gate removed a stale shutdown dialog: `brave.2`
-became the frontmost and AX-focused window on D3, but its accepted-click counter
-remained `0`. The latest clean reruns therefore identify a repeatable automated
-regression rather than a setup failure. Physical three-display hardware
-verification remains required before treating the VM result as a product
-regression.
+The original activation sequence passed six placements but repeatedly failed
+`vscode-d2-c1-d1-c2-d3.json`: `brave.2` became frontmost and AX-focused on D3,
+but its accepted-click counter remained `0`. Input and window-server traces
+showed that AppKit's activation transaction temporarily selected `brave.1` on
+the primary display after JFC's initial raise. JFC now reasserts the target
+window's `AXMain` and `AXRaise` immediately after requesting application
+activation. The fixed sequence passed all seven placements, ten consecutive
+VS Code → C2 transitions in the former failure layout, and all four
+multi-action recipes. Physical three-display hardware verification remains
+required before release.
+
+The control-window activation-policy regression has a separate unchanged
+red/green recipe, `jfc-window-open.json`. Against the previous build, which
+became a regular application while its window was visible, setup and final
+window placement succeeded but the fixture counter remained `0`. Against the
+accessory-only build, the same recipe and SHA-256
+`ac86d3eca5cc8354f8191d2855f6a031191adac75125de7c451b0d75a5dc9bf5`
+passed with the counter at `1`. The visible JFC window remained on D1, VS Code
+began active over C1 on D2, and C2 became active on D3.
+
+After deployment, one complete back-to-back matrix run had an isolated miss in
+`vscode-d2-c1-d1-c2-d1.json`: C2 became active but its counter remained `0`.
+The unchanged recipe then passed three consecutive isolated reruns and passed
+again in a complete clean 12-of-12 matrix run. Preserve the failed artifact as
+an intermittent observation; it has not been treated as a product regression
+or used to loosen the assertion.
 
 ### JFC-off negative controls
 
@@ -470,16 +510,18 @@ the control.
 All seven JFC-off controls passed this qualification on the macOS 14.6.1 VM.
 For six placements, the paired JFC-running recipe accepts one click while the
 JFC-stopped control accepts none, proving that those tests exercise JFC's
-behavior. `vscode-d2-c1-d1-c2-d3.json` accepts no click in either state and is
-therefore the repeatable regression identified above, not a passing positive
-case.
+behavior. In the pre-fix positive run,
+`vscode-d2-c1-d1-c2-d3.json` accepted no click in either state; the fixed
+JFC-running sequence now accepts the click while the unchanged JFC-off result
+remains the expected negative control.
 
-All three multi-action recipes passed with JFC running. The repeated-target
+All four multi-action recipes passed with JFC running. The repeated-target
 recipe accepted three clicks exactly once each. The Brave alternation recipe
 preserved the asserted per-display order while its counters advanced C2 `1`,
 C1 `1`, then C2 `2`. The cross-application recipe completed five physical HID
 actions with C2 advancing `1`, `2`, `3` and VS Code regaining focus between
-them without raising C1.
+them without raising C1. The D1/D3 variant repeated that cross-application
+transition three times in the formerly failing layout with the same result.
 
 ## Capture visual evidence of every display
 
@@ -573,7 +615,7 @@ same canonical scenario matrix defined above.
 
 | Guest macOS | Provisioning | Virtual HID | Entire canonical matrix | Physical acceptance |
 | --- | --- | --- | --- | --- |
-| 14.6.1 (23G93) | Passed | Passed | 6 passed, 1 failed | Pending |
+| 14.6.1 (23G93) | Passed | Passed | 12 of 12 passed | Pending |
 | 15.x | Pending | Pending | Pending | Pending |
 | 26.x | Pending | Pending | Pending | Pending |
 

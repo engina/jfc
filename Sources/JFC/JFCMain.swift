@@ -25,6 +25,7 @@ enum JFCMain {
       "mode: \(options.observeOnly ? "observe only" : "same-event pass-through")",
       "activation: AX window focus + AppKit app activation",
       "settle: \(options.settleMilliseconds) ms",
+      "forensic trace: \(options.traceOutputPath ?? "disabled")",
       "Accessibility: \(accessibilityGranted ? "granted" : "NOT GRANTED")",
     ])
 

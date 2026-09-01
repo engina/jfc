@@ -4,6 +4,7 @@ import CoreGraphics
 import Foundation
 
 struct ResolvedTarget {
+  let element: AXUIElement
   let pid: pid_t
   let applicationName: String
   let bundleIdentifier: String?
@@ -76,6 +77,7 @@ final class WindowResolver {
 
     return .success(
       ResolvedTarget(
+        element: element,
         pid: pid,
         applicationName: applicationName,
         bundleIdentifier: runningApplication?.bundleIdentifier,

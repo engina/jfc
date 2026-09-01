@@ -117,12 +117,12 @@ operated C2 on the first click without raising C1.
 
 ## App lifecycle
 
-Deliberate launches register as a normal application, ensuring the control
-window opens in front and remains reachable through the Dock and Cmd-Tab. When
-the window closes, the application changes to accessory mode while leaving the
-event tap running. Reopening the app restores regular-app presence and presents
-the same window through the normal AppKit reopen callback. There is no menu-bar
-item.
+JFC remains an accessory application for its entire lifetime. A deliberate
+launch presents the control window, and closing it leaves the event tap running.
+Reopening JFC reuses the process and presents the same window through AppKit's
+reopen callback. JFC intentionally has no Dock or Cmd-Tab presence because a
+regular activation policy breaks first-click delivery while its window is
+visible. There is no menu-bar item.
 
 Start at Login uses `SMAppService.loginItem(identifier:)`, available on macOS 13
 and later. JFC continues to target macOS 14 and later. Login launches remain
@@ -132,10 +132,10 @@ presents the control window.
 The helper lives in `Contents/Library/LoginItems`. Registration was verified to
 reach the `enabled` state. A direct helper launch simulating login produced one
 main JFC process with both an argument and environment launch marker; it settled
-as a UI element with no windows. Reopening JFC reused that PID, changed it to a
-foreground application, and restored one control window. The helper exited
-cleanly in both registration and simulation tests. An actual logout/login or
-reboot remains the final manual acceptance test.
+as a UI element with no windows. Reopening JFC reused that PID and restored one
+control window while retaining accessory policy. The helper exited cleanly in
+both registration and simulation tests. An actual logout/login or reboot
+remains the final manual acceptance test.
 
 ## Reproducing the event-path experiment
 
@@ -146,7 +146,60 @@ swift build
 .build/debug/jfc
 ```
 
+### Control-window activation-policy regression
+
+A physical-host observation linked first-click behavior to the JFC control
+window: VS Code → YouTube worked while the window was closed but failed while
+it was open, whereas JFC → YouTube worked in both states. The app changed two
+variables together: showing the window set JFC's activation policy to
+`regular`, while closing it set the policy to `accessory`. The event tap was
+not restarted during this transition.
+
+A physical A/B test kept the control window visible and changed only JFC's
+activation policy. The VS Code → YouTube first click worked in `accessory` mode
+and failed in `regular` mode unless JFC itself was the active application. This
+isolated the regression to JFC's regular-app activation state rather than mere
+window visibility. JFC now remains an accessory application for its entire
+lifetime, including while the control window is visible.
+
+The automated VM reproduced that result with an unchanged scenario. The old
+regular-policy build placed and focused every declared window correctly but
+left the target fixture counter at `0`. The accessory-only build advanced it to
+`1`, and its complete clean macOS 14.6.1 run passed all 12 recipes spanning
+placement, visible-window, and multi-action coverage. An earlier run had one
+intermittent miss in the separate D2/D1/D1 placement; that recipe subsequently
+passed three isolated reruns and the clean matrix rerun without changing its
+expectation.
+
 For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
+
+For an intermittent focus or first-click failure, stop the menu-bar app so only
+one event tap is active, then run the CLI's opt-in forensic capture:
+
+```sh
+.build/debug/jfc --verbose --trace-jsonl /tmp/jfc-focus.jsonl
+```
+
+The JSON Lines trace includes both incoming left-down and left-up events (raw
+Core Graphics fields, serialized event bytes, AppKit's `NSEvent` view, and
+source metadata), the resolved AX target, the decision JFC made, and exact
+timings/results for every AX and application-activation call. A lightweight
+WindowServer z-order checkpoint follows each activation call so transient
+selection of a sibling window remains visible even if a later call repairs the
+final state. Further snapshots scheduled for 0, 1, 5, 10, 20, 50, 100, and 250
+ms after the callback returns contain the frontmost app, on-screen windows, and
+relevant AX application/window/control state; every record includes its actual
+start delay in case earlier inspection work delayed the queue. The final
+snapshot enumerates all public AX attributes and actions exposed by the target
+objects.
+
+This mode uses the same session event tap and still returns the incoming event;
+it does not synthesize or repost input and does not require Input Monitoring.
+It is intentionally CLI-only. Its output contains private window titles,
+control values, bundle and executable paths, cursor positions, and raw event
+metadata. Review it before sharing. File serialization and state inspection can
+perturb a timing-sensitive failure, so compare the observed behavior with and
+without forensic mode and do not treat a traced run as a performance result.
 
 For physical-versus-synthetic input analysis, use the separate diagnostic:
 
@@ -200,30 +253,47 @@ records every display around the action; the fixture's Core Graphics window
 title supplies the accepted-click count while Core Graphics independently
 verifies display placement and global z-order.
 
-The completed seven-placement VM suite passes six placements and repeatedly
-fails one: with VS Code active on D2, `brave.1` on D1, and `brave.2` on D3, the
-click makes `brave.2` frontmost and AX-focused but leaves its counter at `0`.
-The same result persisted after a deterministic pre-test cleanup dismissed a
-stale shutdown dialog and verified that no undeclared layer-zero window was
-visible. This is a reproducible VM regression; the corresponding physical
-three-display test remains necessary to establish whether it is also a product
-regression on real hardware.
+Before the cross-display activation fix, the completed seven-placement VM suite
+passed six placements and repeatedly failed one: with VS Code active on D2,
+`brave.1` on D1, and `brave.2` on D3, the click made `brave.2` frontmost and
+AX-focused but left its counter at `0`. The same result persisted after a
+deterministic pre-test cleanup dismissed a stale shutdown dialog and verified
+that no undeclared layer-zero window was visible.
 
 The same seven positive recipes were then rerun unchanged with JFC stopped.
 Every recipe produced the qualified negative-control signature: macOS activated
 and focused `brave.2` with the expected window order, but the fixture counter
 remained `0` instead of `1`. The six JFC-running passes therefore distinguish
-JFC-on from JFC-off behavior. The D2/D1/D3 regression remains at `0` in both
-states. Control artifacts and their separate report live below the ignored
-`E2E/Artifacts/jfc-off` directory, and the runner restores JFC on exit.
+JFC-on from JFC-off behavior. In that pre-fix run, the D2/D1/D3 regression
+remained at `0` in both states. Control artifacts and their separate report live
+below the ignored `E2E/Artifacts/jfc-off` directory, and the runner restores JFC
+on exit.
 
-Three JFC-running multi-action recipes also pass. Three consecutive clicks on
+Input and window-server traces isolated the failure after Core Graphics had
+already annotated the original event for `brave.2`. The original activation
+sequence raised `brave.2` before requesting application activation, but AppKit's
+later activation transaction temporarily selected `brave.1` on the primary
+display. Chromium then treated the event arriving at `brave.2` as an activation
+click and emitted no DOM mouse sequence. Reasserting `AXMain` and `AXRaise` on
+the target window immediately after `NSRunningApplication.activate` prevents
+that intermediate window selection. Setting the application's
+`AXFocusedWindow` after activation did not fix the regression.
+
+The post-activation reassertion passed ten consecutive VS Code → `brave.2`
+transitions in the formerly failing D1/D3 layout and all placement and
+multi-action recipes on the macOS 14 VM. It adds no settle delay
+and still returns the same incoming `CGEvent`. The corresponding physical
+three-display regression remains a required acceptance test before release.
+
+Four JFC-running multi-action recipes also pass. Three consecutive clicks on
 the focused C2 fixture advance its counter exactly `1`, `2`, `3`. A C2 → C1 →
 C2 sequence advances both Brave counters while verifying the focused window and
 global order after every action. A five-action C2 → VS Code → C2 → VS Code → C2
 sequence advances C2 `1`, `2`, `3`, restores VS Code focus between target
-clicks, and keeps C1 behind VS Code. The VS Code target is an AX-derived point
-in its exposed window body; all action input still comes from VirtualHID.
+clicks, and keeps C1 behind VS Code. The same five-action sequence also passes
+with C1 on D1 and the target C2 on D3, covering the fixed regression three times
+per run. The VS Code target is an AX-derived point in its exposed window body;
+all action input still comes from VirtualHID.
 
 ## Direct distribution
 

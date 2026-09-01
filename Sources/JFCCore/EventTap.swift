@@ -7,23 +7,27 @@ public struct EventTapConfiguration {
   public var settleMilliseconds: UInt32
   public var verbose: Bool
   public var loggingEnabled: Bool
+  public var traceOutputPath: String?
 
   public init(
     observeOnly: Bool = false,
     settleMilliseconds: UInt32 = 0,
     verbose: Bool = false,
-    loggingEnabled: Bool = false
+    loggingEnabled: Bool = false,
+    traceOutputPath: String? = nil
   ) {
     self.observeOnly = observeOnly
     self.settleMilliseconds = settleMilliseconds
     self.verbose = verbose
     self.loggingEnabled = loggingEnabled
+    self.traceOutputPath = traceOutputPath
   }
 }
 
 public enum EventTapStartError: Error, CustomStringConvertible, LocalizedError {
   case creationFailed
   case runLoopSourceFailed
+  case traceOutputFailed(String)
 
   public var description: String {
     switch self {
@@ -31,6 +35,8 @@ public enum EventTapStartError: Error, CustomStringConvertible, LocalizedError {
       "CGEvent tap creation failed. Grant Accessibility, then restart JFC."
     case .runLoopSourceFailed:
       "Could not create a run-loop source for the event tap."
+    case .traceOutputFailed(let reason):
+      "Could not create forensic trace: \(reason)"
     }
   }
 
@@ -47,6 +53,8 @@ public final class EventTap {
   private var runLoopSource: CFRunLoopSource?
   private var sourceRunLoop: CFRunLoop?
   private var clickNumber: UInt64 = 0
+  private var eventSequence: UInt64 = 0
+  private var forensicTrace: ForensicTrace?
 
   public var isRunning: Bool {
     tap != nil
@@ -58,6 +66,14 @@ public final class EventTap {
 
   public func start() throws {
     guard tap == nil else { return }
+
+    if let path = configuration.traceOutputPath {
+      do {
+        forensicTrace = try ForensicTrace(path: path, configuration: configuration)
+      } catch {
+        throw EventTapStartError.traceOutputFailed(String(describing: error))
+      }
+    }
 
     let mask =
       (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
@@ -99,6 +115,7 @@ public final class EventTap {
     CFRunLoopAddSource(runLoop, source, .commonModes)
     CGEvent.tapEnable(tap: tap, enable: true)
     JFCLog.eventTap("Event tap started")
+    forensicTrace?.recordTapStarted()
   }
 
   public func stop() {
@@ -113,6 +130,8 @@ public final class EventTap {
     runLoopSource = nil
     sourceRunLoop = nil
     JFCLog.eventTap("Event tap stopped")
+    forensicTrace?.recordTapStopped()
+    forensicTrace = nil
   }
 
   public func run() -> Never {
@@ -133,28 +152,55 @@ public final class EventTap {
       if let tap {
         CGEvent.tapEnable(tap: tap, enable: true)
       }
+      forensicTrace?.recordTapDisabled(reason: reason)
       return Unmanaged.passUnretained(event)
     }
+
+    guard type == .leftMouseDown || type == .leftMouseUp else {
+      return Unmanaged.passUnretained(event)
+    }
+
+    let callbackStarted = DispatchTime.now().uptimeNanoseconds
+    eventSequence += 1
+    forensicTrace?.recordIncomingEvent(
+      event,
+      type: type,
+      sequence: eventSequence,
+      clickNumber: clickNumber + (type == .leftMouseDown ? 1 : 0),
+      callbackUptimeNanoseconds: callbackStarted
+    )
 
     if type == .leftMouseUp {
       if configuration.verbose && configuration.loggingEnabled {
         Log.line("mouseUp: passed through unchanged")
       }
-      return Unmanaged.passUnretained(event)
-    }
-
-    guard type == .leftMouseDown else {
+      forensicTrace?.recordMouseUpPassThrough(
+        sequence: eventSequence,
+        clickNumber: clickNumber,
+        callbackMilliseconds: elapsedMilliseconds(since: callbackStarted)
+      )
       return Unmanaged.passUnretained(event)
     }
 
     clickNumber += 1
-    let started = DispatchTime.now().uptimeNanoseconds
+    let started = callbackStarted
     let point = event.location
     let clickState = event.getIntegerValueField(.mouseEventClickState)
     let activeApplication = NSWorkspace.shared.frontmostApplication
 
     switch resolver.resolve(at: point) {
     case .failure(let error):
+      forensicTrace?.recordResolutionFailure(
+        clickNumber: clickNumber,
+        reason: error.description
+      )
+      forensicTrace?.recordForwarding(
+        sequence: eventSequence,
+        clickNumber: clickNumber,
+        focusMilliseconds: nil,
+        totalMilliseconds: elapsedMilliseconds(since: started),
+        settleMilliseconds: 0
+      )
       if configuration.verbose && configuration.loggingEnabled {
         Log.block([
           "CLICK #\(clickNumber)",
@@ -166,7 +212,19 @@ public final class EventTap {
       return Unmanaged.passUnretained(event)
 
     case .success(let target):
+      forensicTrace?.recordState(
+        phase: "resolvedBeforeDecision",
+        clickNumber: clickNumber,
+        target: target,
+        includeAccessibility: false
+      )
       if target.shouldBypass {
+        forensicTrace?.recordDecision(
+          clickNumber: clickNumber,
+          decision: "safetyBypass",
+          reason: target.bypassReason,
+          target: target
+        )
         if configuration.verbose && configuration.loggingEnabled {
           Log.block(
             clickLog(
@@ -179,6 +237,7 @@ public final class EventTap {
               "forwarding original click unchanged",
             ])
         }
+        recordPassThroughTrace(target: target, started: started)
         return Unmanaged.passUnretained(event)
       }
 
@@ -193,36 +252,76 @@ public final class EventTap {
       if targetApplicationIsActive {
         switch focuser.windowFocusState(target) {
         case .focused:
+          forensicTrace?.recordDecision(
+            clickNumber: clickNumber,
+            decision: "alreadyFocusedPassThrough",
+            target: target
+          )
           if configuration.verbose && configuration.loggingEnabled {
             lines.append("action: bypass (target window is already focused)")
             lines.append("forwarding original click unchanged")
             Log.block(lines)
           }
+          recordPassThroughTrace(target: target, started: started)
           return Unmanaged.passUnretained(event)
 
         case .unavailable(let reason):
+          forensicTrace?.recordDecision(
+            clickNumber: clickNumber,
+            decision: "focusStateUnavailablePassThrough",
+            reason: reason,
+            target: target
+          )
           if configuration.verbose && configuration.loggingEnabled {
             lines.append("action: bypass (\(reason))")
             lines.append("forwarding original click unchanged")
             Log.block(lines)
           }
+          recordPassThroughTrace(target: target, started: started)
           return Unmanaged.passUnretained(event)
 
         case .unfocused:
           if configuration.observeOnly {
+            forensicTrace?.recordDecision(
+              clickNumber: self.clickNumber,
+              decision: "observeOnlyWouldFocusWindow",
+              target: target
+            )
             lines.append("observe-only: would focus another window in the active application")
             lines.append("forwarding original click unchanged")
             if configuration.loggingEnabled {
               Log.block(lines)
             }
+            recordPassThroughTrace(target: target, started: started)
             return Unmanaged.passUnretained(event)
           }
 
           lines.append(
             "focusing another window in the active application via AX..."
           )
-          let focusAttempt = focuser.focusWindow(target)
-          lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
+          forensicTrace?.recordDecision(
+            clickNumber: clickNumber,
+            decision: "focusWindowInActiveApplication",
+            target: target
+          )
+          let focusAttempt = focuser.focusWindow(target) { [forensicTrace] step in
+            forensicTrace?.recordFocusCheckpoint(
+              clickNumber: self.clickNumber,
+              step: step,
+              target: target
+            )
+          }
+          forensicTrace?.recordFocusAttempt(
+            clickNumber: clickNumber,
+            attempt: focusAttempt
+          )
+          forensicTrace?.recordState(
+            phase: "afterFocusBeforeReturn",
+            clickNumber: clickNumber,
+            target: target,
+            includeAccessibility: false
+          )
+          lines.append(contentsOf: focusAttempt.steps.map { "  \($0.logDescription)" })
           appendForwardingLog(
             to: &lines,
             focusAttempt: focusAttempt,
@@ -231,22 +330,54 @@ public final class EventTap {
           if configuration.loggingEnabled {
             Log.block(lines)
           }
+          recordFocusedForwardingTrace(
+            target: target,
+            attempt: focusAttempt,
+            started: started
+          )
           return Unmanaged.passUnretained(event)
         }
       }
 
       if configuration.observeOnly {
+        forensicTrace?.recordDecision(
+          clickNumber: self.clickNumber,
+          decision: "observeOnlyWouldActivateApplication",
+          target: target
+        )
         lines.append("observe-only: would activate \(target.applicationName)")
         lines.append("forwarding original click unchanged")
         if configuration.loggingEnabled {
           Log.block(lines)
         }
+        recordPassThroughTrace(target: target, started: started)
         return Unmanaged.passUnretained(event)
       }
 
       lines.append("activating \(target.applicationName) via AX window focus + AppKit...")
-      let focusAttempt = focuser.focus(target)
-      lines.append(contentsOf: focusAttempt.steps.map { "  \($0)" })
+      forensicTrace?.recordDecision(
+        clickNumber: clickNumber,
+        decision: "activateApplicationAndFocusWindow",
+        target: target
+      )
+      let focusAttempt = focuser.focus(target) { [forensicTrace] step in
+        forensicTrace?.recordFocusCheckpoint(
+          clickNumber: self.clickNumber,
+          step: step,
+          target: target
+        )
+      }
+      forensicTrace?.recordFocusAttempt(
+        clickNumber: clickNumber,
+        attempt: focusAttempt
+      )
+      forensicTrace?.recordState(
+        phase: "afterFocusBeforeReturn",
+        clickNumber: clickNumber,
+        target: target,
+        includeAccessibility: false
+      )
+      lines.append(contentsOf: focusAttempt.steps.map { "  \($0.logDescription)" })
 
       appendForwardingLog(
         to: &lines,
@@ -256,6 +387,11 @@ public final class EventTap {
       if configuration.loggingEnabled {
         Log.block(lines)
       }
+      recordFocusedForwardingTrace(
+        target: target,
+        attempt: focusAttempt,
+        started: started
+      )
       return Unmanaged.passUnretained(event)
     }
   }
@@ -280,6 +416,38 @@ public final class EventTap {
         totalElapsed
       )
     )
+  }
+
+  private func recordPassThroughTrace(target: ResolvedTarget, started: UInt64) {
+    guard let forensicTrace else { return }
+    forensicTrace.recordForwarding(
+      sequence: eventSequence,
+      clickNumber: clickNumber,
+      focusMilliseconds: nil,
+      totalMilliseconds: elapsedMilliseconds(since: started),
+      settleMilliseconds: 0
+    )
+    forensicTrace.schedulePostReturnStates(clickNumber: clickNumber, target: target)
+  }
+
+  private func recordFocusedForwardingTrace(
+    target: ResolvedTarget,
+    attempt: FocusAttempt,
+    started: UInt64
+  ) {
+    guard let forensicTrace else { return }
+    forensicTrace.recordForwarding(
+      sequence: eventSequence,
+      clickNumber: clickNumber,
+      focusMilliseconds: attempt.elapsedMilliseconds,
+      totalMilliseconds: elapsedMilliseconds(since: started),
+      settleMilliseconds: configuration.settleMilliseconds
+    )
+    forensicTrace.schedulePostReturnStates(clickNumber: clickNumber, target: target)
+  }
+
+  private func elapsedMilliseconds(since started: UInt64) -> Double {
+    Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
   }
 
   private func clickLog(

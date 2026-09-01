@@ -58,3 +58,17 @@ comparison. It observes no keyboard events and does not change JFC's runtime
 permissions or event path. See [RESEARCH.md](RESEARCH.md) for usage and output
 details. The reproducible UTM, multi-display, Appium, and virtual-HID test setup
 is maintained in [E2E_RUNBOOK.md](E2E_RUNBOOK.md).
+
+For focus failures, the preserved CLI also has an explicit forensic mode:
+
+```sh
+.build/debug/jfc --verbose --trace-jsonl /tmp/jfc-focus.jsonl
+```
+
+This records the original left-click event, every activation operation and its
+timing, WindowServer ordering checkpoints, delayed AX state, and display
+topology. It is never enabled by the menu-bar app and does not change JFC's
+Accessibility-only permission model. The file contains private application,
+window, control, cursor, and raw-event metadata; do not publish it without
+reviewing it. The extra observation work can also perturb timing, so it is a
+diagnostic capture rather than a normal operating mode.

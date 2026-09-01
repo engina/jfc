@@ -15,6 +15,10 @@ import {
 import {loadScenario} from "./scenario.mjs";
 
 const APP = {
+  jfc: {
+    bundleID: "io.e10n.jfc",
+    processName: "JFC",
+  },
   brave: {
     bundleID: "com.brave.Browser",
     processName: "Brave Browser",
@@ -101,6 +105,10 @@ function validateRuntimeVocabulary(scenario) {
   if (vscode.length > 1 || (vscode[0] && vscode[0].key !== "vscode")) {
     throw new Error("the executor supports one window named vscode");
   }
+  const jfc = windows.filter(({app}) => app === "jfc");
+  if (jfc.length > 1 || (jfc[0] && jfc[0].key !== "jfc")) {
+    throw new Error("the executor supports one window named jfc");
+  }
   const braveIndexes = windows
     .filter(({app}) => app === "brave")
     .map(({index}) => index)
@@ -148,6 +156,9 @@ JSON.stringify(result);
 
 function canonicalFrame(app, screen) {
   const margin = 40;
+  if (app === "jfc") {
+    return {x: screen.x + margin, y: screen.y + margin, width: 520, height: 430};
+  }
   const width = Math.round(screen.width * 0.62) - margin;
   const height = screen.height - margin * 2;
   const x =
@@ -186,6 +197,16 @@ tell application "System Events"
     end tell
   end if
 
+  if exists application process "JFC" then
+    tell application process "JFC"
+      repeat with candidateWindow in every window
+        try
+          click (first button of candidateWindow whose subrole is "AXCloseButton")
+        end try
+      end repeat
+    end tell
+  end if
+
   set clearableProcesses to {"Terminal", "TextEdit", "Activity Monitor", "App Store", "Safari", "Finder", "System Settings", "Preview", "Xcode", "Code"}
   repeat with processName in clearableProcesses
     if exists application process (processName as text) then
@@ -216,6 +237,25 @@ async function launchVSCode(client) {
     await sleep(250);
   }
   throw new Error("VS Code did not create a window");
+}
+
+async function launchJFC(client) {
+  await client.execute("macos: launchApp", [{bundleId: APP.jfc.bundleID}]);
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const result = await runAppleScript(
+      client,
+      'tell application "System Events" to return exists application process "JFC"',
+    );
+    if (result.trim() === "true") {
+      const count = await runAppleScript(
+        client,
+        'tell application "System Events" to tell application process "JFC" to return count of windows',
+      );
+      if (Number(count.trim()) === 1) return;
+    }
+    await sleep(250);
+  }
+  throw new Error("JFC did not create its control window");
 }
 
 async function launchBraveWindows(client, braveWindows, fixturePath) {
@@ -301,9 +341,25 @@ end tell
 `;
     await runAppleScript(client, script);
   }
+
+  const jfc = windows.find(({app}) => app === "jfc");
+  if (jfc) {
+    const frame = canonicalFrame(jfc.app, screens[jfc.display - 1]);
+    const script = `
+tell application "System Events"
+  tell application process "JFC"
+    set position of window 1 to {${frame.x}, ${frame.y}}
+  end tell
+end tell
+`;
+    await runAppleScript(client, script);
+  }
 }
 
 function raiseScript(window) {
+  if (window.app === "jfc") {
+    return 'tell application "System Events" to tell application process "JFC" to perform action "AXRaise" of window 1';
+  }
   if (window.app === "vscode") {
     return `tell application "System Events" to tell application process "Code" to perform action "AXRaise" of window 1`;
   }
@@ -469,6 +525,9 @@ function sendVirtualHIDClick() {
 
 function identifyWindow(record, declared) {
   if (record.layer !== 0) return null;
+  if (record.bundleID === APP.jfc.bundleID) {
+    return declared.some(({key}) => key === "jfc") ? "jfc" : null;
+  }
   if (record.bundleID === APP.vscode.bundleID) {
     return declared.some(({key}) => key === "vscode") ? "vscode" : null;
   }
@@ -616,6 +675,7 @@ async function main() {
     await terminateApplications(client, scenario);
     await clearDesktop(client);
     const declared = allWindows(scenario.windows);
+    if (declared.some(({app}) => app === "jfc")) await launchJFC(client);
     if (declared.some(({app}) => app === "vscode")) await launchVSCode(client);
     await launchBraveWindows(
       client,

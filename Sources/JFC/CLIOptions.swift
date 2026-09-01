@@ -6,13 +6,15 @@ struct CLIOptions {
   var promptForPermissions = true
   var settleMilliseconds: UInt32 = 0
   var verbose = false
+  var traceOutputPath: String?
 
   var eventTapConfiguration: EventTapConfiguration {
     EventTapConfiguration(
       observeOnly: observeOnly,
       settleMilliseconds: settleMilliseconds,
       verbose: verbose,
-      loggingEnabled: true
+      loggingEnabled: true,
+      traceOutputPath: traceOutputPath
     )
   }
 
@@ -28,6 +30,8 @@ struct CLIOptions {
       --observe                   Resolve and log clicks without changing focus
       --no-permission-prompt      Check permissions without opening macOS prompts
       --verbose                   Log passed-through mouse-up and skipped clicks
+      --trace-jsonl <path>        Write a private, CLI-only forensic trace containing
+                                  raw event, AX, application, and window metadata
       -h, --help                  Show this help
 
     Start with the defaults. If the first click only focuses Chrome, compare:
@@ -61,6 +65,13 @@ struct CLIOptions {
 
       case "--verbose":
         options.verbose = true
+
+      case "--trace-jsonl":
+        index += 1
+        guard index < arguments.count, !arguments[index].isEmpty else {
+          throw CLIError("--trace-jsonl requires an output path")
+        }
+        options.traceOutputPath = arguments[index]
 
       case "-h", "--help":
         throw CLIHelpRequested()

@@ -76,8 +76,10 @@ test("loads the canonical placement and multi-action recipes", async () => {
   assert.deepEqual(filenames, [
     "alternate-brave-windows.json",
     "c1-active-d2-c2-d3.json",
+    "jfc-window-open.json",
     "repeat-c2-three-clicks.json",
     "repeat-vscode-c2-transitions.json",
+    "repeat-vscode-d1-d3-transitions.json",
     "setup-smoke.json",
     "vscode-d2-c1-d1-c2-d1.json",
     "vscode-d2-c1-d1-c2-d3.json",
