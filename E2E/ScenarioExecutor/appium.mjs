@@ -72,4 +72,15 @@ export class AppiumClient {
       `/session/${this.sessionId}/element/${elementId}/attribute/${encodeURIComponent(name)}`,
     );
   }
+
+  async clickElement(elementId) {
+    return await this.request(
+      `/session/${this.sessionId}/element/${elementId}/click`,
+      {method: "POST", body: {}},
+    );
+  }
+
+  async source() {
+    return await this.request(`/session/${this.sessionId}/source`);
+  }
 }

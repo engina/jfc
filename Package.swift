@@ -11,6 +11,7 @@ let package = Package(
     .executable(name: "jfc", targets: ["JFC"]),
     .executable(name: "jfc-input-diagnostic", targets: ["JFCInputDiagnostic"]),
     .executable(name: "JFCApp", targets: ["JFCApp"]),
+    .executable(name: "JFCClickAgent", targets: ["JFCClickAgent"]),
     .executable(name: "JFCLoginItem", targets: ["JFCLoginItem"]),
   ],
   targets: [
@@ -33,8 +34,17 @@ let package = Package(
     ),
     .executableTarget(
       name: "JFCApp",
-      dependencies: ["JFCCore"],
+      dependencies: ["JFCCore", "JFCIPC"],
       path: "Sources/JFCApp"
+    ),
+    .target(
+      name: "JFCIPC",
+      path: "Sources/JFCIPC"
+    ),
+    .executableTarget(
+      name: "JFCClickAgent",
+      dependencies: ["JFCCore", "JFCIPC"],
+      path: "Sources/JFCClickAgent"
     ),
     .executableTarget(
       name: "JFCLoginItem",

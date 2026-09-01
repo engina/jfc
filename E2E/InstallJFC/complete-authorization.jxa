@@ -1,0 +1,20 @@
+ObjC.import("Foundation");
+
+function run() {
+  const input = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
+  const decoded = $.NSString.alloc.initWithDataEncoding(
+    input,
+    $.NSUTF8StringEncoding,
+  );
+  if (!decoded) throw new Error("could not decode authorization password");
+
+  const password = ObjC.unwrap(decoded).replace(/[\r\n]+$/, "");
+  if (!password || /[\r\n]/.test(password)) {
+    throw new Error("authorization password must contain one non-empty line");
+  }
+
+  const systemEvents = Application("System Events");
+  systemEvents.keystroke(password);
+  delay(0.2);
+  systemEvents.keyCode(36);
+}

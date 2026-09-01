@@ -115,6 +115,8 @@
       "packageVersion": "8.2.0",
       "systemExtensionVersion": "1.8.0",
       "developerTeam": "G43BCU2T37",
+      "launchdLabel": "io.e10n.jfc.e2e.virtual-hid",
+      "clickClient": "/usr/local/libexec/jfc-e2e-virtual-hid-click",
       "upstreamTag": "v8.2.0",
       "upstreamCommit": "cd0cb13e09a04be4d765b6f88ecf7d67bff6f2c5",
       "packageSHA256": "7faf4c33046c2274726da9e29da795fb2d2ad81796557db0fcc1686c611eeafc"

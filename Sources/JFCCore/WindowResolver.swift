@@ -22,8 +22,10 @@ struct ResolutionFailure: Error, CustomStringConvertible {
 
 final class WindowResolver {
   private let systemWideElement = AXUIElementCreateSystemWide()
+  private let ignoredBundleIdentifiers: Set<String>
 
-  init() {
+  init(ignoredBundleIdentifiers: Set<String> = []) {
+    self.ignoredBundleIdentifiers = ignoredBundleIdentifiers
     // Keep a hung or nonresponsive AX provider from stalling the global input
     // stream long enough for WindowServer to disable this event tap.
     AXUIElementSetMessagingTimeout(systemWideElement, 0.1)
@@ -103,6 +105,12 @@ final class WindowResolver {
 
     if runningApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier {
       return "target is jfc itself"
+    }
+
+    if let bundleIdentifier = runningApplication?.bundleIdentifier,
+      ignoredBundleIdentifiers.contains(bundleIdentifier)
+    {
+      return "target is a jfc control process"
     }
 
     if runningApplication?.activationPolicy == .prohibited {

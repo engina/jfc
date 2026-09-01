@@ -24,9 +24,10 @@ final class AppState: ObservableObject {
   }
 
   private let defaults: UserDefaults
-  private let eventTap = EventTap()
+  private let clickAgent = ClickAgentClient()
   private var refreshTask: Task<Void, Never>?
   private var shouldBeEnabled: Bool
+  private var requestNumber: UInt64 = 0
 
   private static var loginItemService: SMAppService {
     SMAppService.loginItem(identifier: loginItemIdentifier)
@@ -40,14 +41,11 @@ final class AppState: ObservableObject {
     }
 
     shouldBeEnabled = defaults.bool(forKey: DefaultsKey.enabled)
-    accessibilityGranted = AccessibilityPermission.isTrusted(prompt: false)
+    accessibilityGranted = false
     launchAtLoginStatus = Self.loginItemService.status
-    JFCLog.permission(
-      "Initial Accessibility status: \(accessibilityGranted ? "granted" : "not granted")"
-    )
     JFCLog.login("Initial SAL status: \(describe(launchAtLoginStatus))")
 
-    reconcileEventTap()
+    reconcileClickAgent()
     refreshTask = Task { @MainActor [weak self] in
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(1))
@@ -75,19 +73,17 @@ final class AppState: ObservableObject {
   }
 
   private func refreshAccessibility() {
-    let wasGranted = accessibilityGranted
-    accessibilityGranted = AccessibilityPermission.isTrusted(prompt: false)
-
-    if accessibilityGranted != wasGranted {
-      JFCLog.permission(
-        "Accessibility status changed: \(accessibilityGranted ? "granted" : "revoked")"
-      )
-    }
-
-    if accessibilityGranted != wasGranted || (shouldBeEnabled && !eventTap.isRunning) {
-      reconcileEventTap()
-    } else if !accessibilityGranted && eventTap.isRunning {
-      reconcileEventTap()
+    performRequest { [clickAgent] completion in
+      clickAgent.status(completion: completion)
+    } completion: { [weak self] status in
+      guard let self else { return }
+      if shouldBeEnabled && status.accessibilityGranted && !status.running
+        && status.errorMessage == nil
+      {
+        reconcileClickAgent()
+      } else {
+        apply(status)
+      }
     }
   }
 
@@ -102,13 +98,7 @@ final class AppState: ObservableObject {
     shouldBeEnabled = true
     defaults.set(true, forKey: DefaultsKey.enabled)
 
-    guard accessibilityGranted else {
-      operationalState = .needsPermission
-      requestAccessibility()
-      return
-    }
-
-    reconcileEventTap()
+    reconcileClickAgent()
   }
 
   func stop() {
@@ -116,8 +106,7 @@ final class AppState: ObservableObject {
     errorMessage = nil
     shouldBeEnabled = false
     defaults.set(false, forKey: DefaultsKey.enabled)
-    eventTap.stop()
-    operationalState = .stopped
+    reconcileClickAgent()
   }
 
   func setStartsAtLogin(_ enabled: Bool) {
@@ -169,7 +158,7 @@ final class AppState: ObservableObject {
   func shutDown() {
     refreshTask?.cancel()
     refreshTask = nil
-    eventTap.stop()
+    clickAgent.invalidate()
   }
 
   private func describe(_ status: SMAppService.Status) -> String {
@@ -182,31 +171,57 @@ final class AppState: ObservableObject {
     }
   }
 
-  private func reconcileEventTap() {
-    guard accessibilityGranted else {
-      eventTap.stop()
+  private func reconcileClickAgent() {
+    performRequest { [clickAgent, shouldBeEnabled] completion in
+      clickAgent.setEnabled(shouldBeEnabled, completion: completion)
+    } completion: { [weak self] status in
+      self?.apply(status)
+    }
+  }
+
+  private func performRequest(
+    _ operation: (@escaping ClickAgentClient.Completion) -> Void,
+    completion: @escaping (ClickAgentStatus) -> Void
+  ) {
+    requestNumber &+= 1
+    let requestNumber = requestNumber
+    operation { [weak self] result in
+      guard let self, requestNumber == self.requestNumber else { return }
+      switch result {
+      case .success(let status):
+        completion(status)
+      case .failure(let error):
+        self.operationalState = .failed
+        self.errorMessage = error.localizedDescription
+      }
+    }
+  }
+
+  private func apply(_ status: ClickAgentStatus) {
+    let wasGranted = accessibilityGranted
+    accessibilityGranted = status.accessibilityGranted
+
+    if accessibilityGranted != wasGranted {
+      JFCLog.permission(
+        "Accessibility status changed: \(accessibilityGranted ? "granted" : "revoked")"
+      )
+    }
+
+    if let agentError = status.errorMessage {
+      operationalState = .failed
+      errorMessage = agentError
+    } else if !accessibilityGranted {
       operationalState = .needsPermission
-      return
-    }
-
-    guard shouldBeEnabled else {
-      eventTap.stop()
-      operationalState = .stopped
-      return
-    }
-
-    guard !eventTap.isRunning else {
-      operationalState = .running
-      return
-    }
-
-    do {
-      try eventTap.start()
+      errorMessage = nil
+    } else if shouldBeEnabled && status.running {
       operationalState = .running
       errorMessage = nil
-    } catch {
+    } else if shouldBeEnabled {
       operationalState = .failed
-      errorMessage = error.localizedDescription
+      errorMessage = "The JFC click agent isn’t running."
+    } else {
+      operationalState = .stopped
+      errorMessage = nil
     }
   }
 }

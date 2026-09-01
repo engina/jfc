@@ -1,0 +1,26 @@
+[git]
+conventional_commits = true
+filter_unconventional = true
+require_conventional = true
+tag_pattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+processing_order = [
+    "commit_preprocessors",
+    "split_commits",
+    "conventional_commits",
+    "commit_parsers",
+    "link_parsers",
+]
+
+# Normalize the handful of pre-adoption commit subjects without weakening the
+# Conventional Commits requirement for new history.
+commit_preprocessors = [
+    { pattern = "^Fix ", replace = "fix: " },
+    { pattern = "^Bump version to (.*)$", replace = "chore(release): bump version to ${1}" },
+    { pattern = "^Add (.*(?:E2E|end-to-end|fixture|test tooling).*)$", replace = "test: add ${1}" },
+    { pattern = "^Expand (.*E2E.*)$", replace = "test: expand ${1}" },
+]
+
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = true
+initial_tag = "0.1.0"

@@ -185,6 +185,10 @@ async function terminateApplications(client, scenario) {
 }
 
 async function clearDesktop(client) {
+  await client.execute("macos: terminateApp", [
+    {bundleId: "com.apple.systempreferences"},
+  ]);
+  await sleep(500);
   const script = `
 tell application "System Events"
   if exists application process "loginwindow" then
@@ -207,7 +211,7 @@ tell application "System Events"
     end tell
   end if
 
-  set clearableProcesses to {"Terminal", "TextEdit", "Activity Monitor", "App Store", "Safari", "Finder", "System Settings", "Preview", "Xcode", "Code"}
+  set clearableProcesses to {"Terminal", "TextEdit", "Activity Monitor", "App Store", "Safari", "Finder", "Preview", "Xcode", "Code"}
   repeat with processName in clearableProcesses
     if exists application process (processName as text) then
       set visible of application process (processName as text) to false

@@ -11,6 +11,10 @@ jfc_is_running() {
   ssh "$JFC_VM_HOST" '/usr/bin/pgrep -x JFC >/dev/null 2>&1'
 }
 
+jfc_is_agent_running() {
+  ssh "$JFC_VM_HOST" '/usr/bin/pgrep -x JFCClickAgent >/dev/null 2>&1'
+}
+
 jfc_start() {
   ssh "$JFC_VM_HOST" \
     "/usr/bin/open -gja '/Applications/JFC.app' --args --launch-at-login"
@@ -37,10 +41,10 @@ if jfc_is_running; then
 fi
 ssh "$JFC_VM_HOST" '/usr/bin/pkill -x JFC >/dev/null 2>&1 || true'
 JFC_ATTEMPT=0
-while jfc_is_running; do
+while jfc_is_running || jfc_is_agent_running; do
   JFC_ATTEMPT=$((JFC_ATTEMPT + 1))
   if [ "$JFC_ATTEMPT" -ge 40 ]; then
-    echo "JFC did not stop" >&2
+    echo "JFC UI or click agent did not stop" >&2
     exit 1
   fi
   /bin/sleep 0.25

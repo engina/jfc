@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-01T05:30:00Z",
+  "architecture": "one-process accessory JFC",
+  "productSourceCommit": "3e7df9b1ebdbb5c2444b44bd2362a9adb7b141ee",
+  "vmManifestSha256": "a2c76fecbcbe240985170d8381dd89c5dd04693d3fcbc3acb757c3f818a73290",
+  "guest": {
+    "productVersion": "14.6.1",
+    "buildVersion": "23G93",
+    "architecture": "arm64",
+    "displayCount": 3
+  },
+  "product": {
+    "version": "0.1.1",
+    "build": "2",
+    "bundleIdentifier": "io.e10n.jfc",
+    "teamIdentifier": "84TYRM74QA",
+    "cdhash": "937033c0b9aaaf78f27b8e602818715b70cac229"
+  },
+  "cleanInstall": {
+    "jfcAbsentBeforeInstall": true,
+    "signatureMatchedHostBuild": true,
+    "initialAccessibilityState": "untrusted",
+    "permissionToggleInput": "VirtualHID left click",
+    "finalAccessibilityState": "granted",
+    "finalServiceState": "running"
+  },
+  "matrix": {
+    "status": "passed",
+    "scenarioCount": 12,
+    "scenarioDurationMs": 409034,
+    "scenarios": [
+      {
+        "scenario": "setup-smoke.json",
+        "scenarioSha256": "3d5ea647a7417cdf15bdcb72eb032f56a1a77de56a117c3b6b08b75233a8c24a",
+        "status": "passed",
+        "durationMs": 33006
+      },
+      {
+        "scenario": "vscode-d2-c1-d2-c2-d2.json",
+        "scenarioSha256": "09e11b3bde663a61a06c157de2eb8b3a9600e272caaa102c415abb2c3ab7e88e",
+        "status": "passed",
+        "durationMs": 30665
+      },
+      {
+        "scenario": "vscode-d2-c1-d1-c2-d3.json",
+        "scenarioSha256": "07a0647c56d911d1bf38f7bc0f822790410c06602ebe9b6fdb3e972bbb5207b9",
+        "status": "passed",
+        "durationMs": 29975
+      },
+      {
+        "scenario": "vscode-d2-c1-d1-c2-d1.json",
+        "scenarioSha256": "ea23075a2972dff981c8264225b8217fd239a7f0b6abba8575fdd29eaa0b3613",
+        "status": "passed",
+        "durationMs": 30345
+      },
+      {
+        "scenario": "vscode-d2-c1-d2-c2-d1.json",
+        "scenarioSha256": "59fe66d64b8002ba8aa2098891911ed75163cd75ab1ad963d18261a7037a512b",
+        "status": "passed",
+        "durationMs": 30172
+      },
+      {
+        "scenario": "vscode-d2-c1-d3-c2-d1.json",
+        "scenarioSha256": "7c8af36ddce99c95ab70780edcf25d6b08c7fbf3e8bfb050f909ec88c844b217",
+        "status": "passed",
+        "durationMs": 29805
+      },
+      {
+        "scenario": "c1-active-d2-c2-d3.json",
+        "scenarioSha256": "1200947f68322d877c88bfe6f93545390ab75f9abd4962285cbddadcb4d1d309",
+        "status": "passed",
+        "durationMs": 25878
+      },
+      {
+        "scenario": "jfc-window-open.json",
+        "scenarioSha256": "ac86d3eca5cc8354f8191d2855f6a031191adac75125de7c451b0d75a5dc9bf5",
+        "status": "passed",
+        "durationMs": 34725
+      },
+      {
+        "scenario": "repeat-c2-three-clicks.json",
+        "scenarioSha256": "648f286b4f35935bc404ee118009a518e9106cfa60d862e7ebaa82898a3318df",
+        "status": "passed",
+        "durationMs": 37096
+      },
+      {
+        "scenario": "alternate-brave-windows.json",
+        "scenarioSha256": "2709c6957502e50d3094b471d1e16ede83d83566f6b045fa16f650bbab57627d",
+        "status": "passed",
+        "durationMs": 37982
+      },
+      {
+        "scenario": "repeat-vscode-c2-transitions.json",
+        "scenarioSha256": "47bd4016ccee2db4211ad8fc74a96d3646e7d48ec6bb65130a1abdf76b6133d3",
+        "status": "passed",
+        "durationMs": 44879
+      },
+      {
+        "scenario": "repeat-vscode-d1-d3-transitions.json",
+        "scenarioSha256": "8f1919eea77e090eceb09ac31691f7f858f29a5ac24460eb3e981cf8409ceb2b",
+        "status": "passed",
+        "durationMs": 44506
+      }
+    ]
+  }
+}

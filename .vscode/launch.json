@@ -1,0 +1,124 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug jfc",
+            "target": "jfc",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug jfc"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release jfc",
+            "target": "jfc",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release jfc"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug JFCApp",
+            "target": "JFCApp",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug JFCApp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release JFCApp",
+            "target": "JFCApp",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release JFCApp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug JFCLoginItem",
+            "target": "JFCLoginItem",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug JFCLoginItem"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release JFCLoginItem",
+            "target": "JFCLoginItem",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release JFCLoginItem"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug jfc-e2e-runner",
+            "target": "jfc-e2e-runner",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug jfc-e2e-runner"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release jfc-e2e-runner",
+            "target": "jfc-e2e-runner",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release jfc-e2e-runner"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug jfc-input-diagnostic",
+            "target": "jfc-input-diagnostic",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug jfc-input-diagnostic"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release jfc-input-diagnostic",
+            "target": "jfc-input-diagnostic",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release jfc-input-diagnostic"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Debug JFCClickAgent",
+            "target": "JFCClickAgent",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug JFCClickAgent"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:jfc}",
+            "name": "Release JFCClickAgent",
+            "target": "JFCClickAgent",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release JFCClickAgent"
+        }
+    ]
+}

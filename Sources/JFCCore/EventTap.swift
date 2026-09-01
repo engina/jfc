@@ -8,19 +8,22 @@ public struct EventTapConfiguration {
   public var verbose: Bool
   public var loggingEnabled: Bool
   public var traceOutputPath: String?
+  public var ignoredBundleIdentifiers: Set<String>
 
   public init(
     observeOnly: Bool = false,
     settleMilliseconds: UInt32 = 0,
     verbose: Bool = false,
     loggingEnabled: Bool = false,
-    traceOutputPath: String? = nil
+    traceOutputPath: String? = nil,
+    ignoredBundleIdentifiers: Set<String> = []
   ) {
     self.observeOnly = observeOnly
     self.settleMilliseconds = settleMilliseconds
     self.verbose = verbose
     self.loggingEnabled = loggingEnabled
     self.traceOutputPath = traceOutputPath
+    self.ignoredBundleIdentifiers = ignoredBundleIdentifiers
   }
 }
 
@@ -47,7 +50,7 @@ public enum EventTapStartError: Error, CustomStringConvertible, LocalizedError {
 
 public final class EventTap {
   private let configuration: EventTapConfiguration
-  private let resolver = WindowResolver()
+  private let resolver: WindowResolver
   private let focuser = AccessibilityFocuser()
   private var tap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
@@ -62,6 +65,9 @@ public final class EventTap {
 
   public init(configuration: EventTapConfiguration = EventTapConfiguration()) {
     self.configuration = configuration
+    resolver = WindowResolver(
+      ignoredBundleIdentifiers: configuration.ignoredBundleIdentifiers
+    )
   }
 
   public func start() throws {

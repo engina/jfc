@@ -17,7 +17,7 @@ enum JFCAppMain {
     let application = NSApplication.shared
     let delegate = AppDelegate()
     application.delegate = delegate
-    application.setActivationPolicy(.accessory)
+    application.setActivationPolicy(LaunchContext.isLoginLaunch ? .accessory : .regular)
     application.run()
   }
 }
@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func showControlWindow() {
     JFCLog.lifecycle("Showing control window")
+    NSApplication.shared.setActivationPolicy(.regular)
     installMainMenuIfNeeded()
     controlWindowController?.show(forceToFront: true)
     DispatchQueue.main.async { [weak self] in
@@ -78,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func hideApplicationPresence() {
     JFCLog.lifecycle("Control window closed; continuing in background")
+    NSApplication.shared.setActivationPolicy(.accessory)
   }
 
   private func installMainMenuIfNeeded() {

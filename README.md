@@ -37,6 +37,9 @@ On a left mouse-down over inactive app or window content, JFC:
 There is no synthesized click, event reposting, or focus-follows-mouse. Clicks
 in the already-focused window pass through normally, and failures fail open.
 JFC observes no keyboard input and requires Accessibility permission only.
+The control window and click handler run in separate native processes, so the
+window behaves like a normal Mac app without changing the proven event path.
+macOS lists the headless handler as `JFC Click Agent` in Accessibility settings.
 
 ## Build
 

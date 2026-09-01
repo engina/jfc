@@ -489,6 +489,22 @@ again in a complete clean 12-of-12 matrix run. Preserve the failed artifact as
 an intermittent observation; it has not been treated as a product regression
 or used to loosen the assertion.
 
+### Clean product qualification
+
+Run the complete fail-fast product lifecycle from the host with:
+
+```sh
+./scripts/run-clean-e2e-matrix.sh mac-vm
+```
+
+The runner clones the immutable preinstall baseline, proves the signed build is
+initially untrusted, enables the single `JFC Click Agent` Accessibility row,
+runs all 12 positive scenarios, verifies Stop, Start, and forced agent-crash
+recovery, runs all seven JFC-off controls, verifies final Running status, then
+captures artifacts and deletes the exact disposable clone. The qualified
+macOS 14.6.1 run completed every gate and restored a killed click agent under a
+new PID before proceeding to the negative controls.
+
 ### JFC-off negative controls
 
 Run the unchanged positive recipes with JFC deliberately stopped:

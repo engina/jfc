@@ -30,8 +30,12 @@ Input Monitoring reports `NOT GRANTED`. The application therefore requests
 Accessibility only. Asking for Input Monitoring would add an unnecessary
 privacy permission to the onboarding flow.
 
-The app bundle is a separate TCC identity from Terminal and the CLI executable,
-so `JFC.app` must receive its own Accessibility grant.
+The app bundle is a separate TCC identity from Terminal and the CLI executable.
+In the final two-process build, the headless helper is the process that calls AX
+and owns the event tap, so macOS presents one `JFC Click Agent` Accessibility
+entry. The control UI needs no separate grant. A pristine-clone test proved the
+helper begins untrusted, enabled that exact row through System Settings, and
+then observed the UI transition to Granted and Running.
 
 ## Window resolution and focus
 
@@ -117,25 +121,35 @@ operated C2 on the first click without raising C1.
 
 ## App lifecycle
 
-JFC remains an accessory application for its entire lifetime. A deliberate
-launch presents the control window, and closing it leaves the event tap running.
-Reopening JFC reuses the process and presents the same window through AppKit's
-reopen callback. JFC intentionally has no Dock or Cmd-Tab presence because a
-regular activation policy breaks first-click delivery while its window is
-visible. There is no menu-bar item.
+JFC now separates its control UI from click handling. The main application is
+regular while its window is visible and becomes an accessory application after
+the window closes. A bundled `LSUIElement` AppKit helper application owns the
+event tap, performs the established focus sequence, and returns the same
+incoming physical event. The UI launches it through `NSWorkspace` without
+activation, so changing the UI process's activation policy cannot change the
+event-tap owner's activation state.
+
+The UI sends enable and privacy-safe status requests over a token-scoped local
+`CFMessagePort`. The helper monitors the UI process and stops when its owner
+exits; quitting sends an explicit shutdown request. If the helper crashes, the
+UI relaunches it and restores the event tap. Stop, start, and forced-crash
+recovery were verified in the disposable VM. A deliberate launch shows the
+control window, closing it leaves the UI and helper running in the background,
+and reopening JFC presents the same window through AppKit's reopen callback.
+There is no menu-bar item.
 
 Start at Login uses `SMAppService.loginItem(identifier:)`, available on macOS 13
 and later. JFC continues to target macOS 14 and later. Login launches remain
 hidden; deliberate activation from Finder, Spotlight, or another launcher
 presents the control window.
 
-The helper lives in `Contents/Library/LoginItems`. Registration was verified to
+The login helper lives in `Contents/Library/LoginItems`. Registration was verified to
 reach the `enabled` state. A direct helper launch simulating login produced one
-main JFC process with both an argument and environment launch marker; it settled
-as a UI element with no windows. Reopening JFC reused that PID and restored one
-control window while retaining accessory policy. The helper exited cleanly in
-both registration and simulation tests. An actual logout/login or reboot
-remains the final manual acceptance test.
+main JFC UI process with both an argument and environment launch marker; the UI
+then connects to its click-agent application while remaining hidden. Reopening
+JFC reuses the UI PID and restores one control window. The helper exited cleanly in both
+registration and simulation tests. An actual logout/login or reboot remains the
+final manual acceptance test.
 
 ## Reproducing the event-path experiment
 
@@ -158,18 +172,20 @@ not restarted during this transition.
 A physical A/B test kept the control window visible and changed only JFC's
 activation policy. The VS Code → YouTube first click worked in `accessory` mode
 and failed in `regular` mode unless JFC itself was the active application. This
-isolated the regression to JFC's regular-app activation state rather than mere
-window visibility. JFC now remains an accessory application for its entire
-lifetime, including while the control window is visible.
+isolated the regression to the event-tap owner's regular-app activation state
+rather than mere window visibility. The two-process design keeps the click
+handler in a headless `LSUIElement` AppKit application while allowing the
+separate UI to behave as a normal application.
 
-The automated VM reproduced that result with an unchanged scenario. The old
+The automated VM reproduced the original result with an unchanged scenario. The old
 regular-policy build placed and focused every declared window correctly but
 left the target fixture counter at `0`. The accessory-only build advanced it to
-`1`, and its complete clean macOS 14.6.1 run passed all 12 recipes spanning
-placement, visible-window, and multi-action coverage. An earlier run had one
-intermittent miss in the separate D2/D1/D1 placement; that recipe subsequently
-passed three isolated reruns and the clean matrix rerun without changing its
-expectation.
+`1`. An initial XPC-service implementation still swallowed clicks in the
+five-action D1/D3 recipe even though it used the same JFCCore logic. Moving the
+unchanged event path into the actual `LSUIElement` AppKit helper passed that
+recipe and the JFC-window-open recipe with the UI in regular mode. The final
+clean macOS 14.6.1 qualification passed all 12 recipes, including three VS Code
+→ C2 transitions in the former D1/D3 failure layout.
 
 For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
 
@@ -298,11 +314,11 @@ all action input still comes from VirtualHID.
 ## Direct distribution
 
 JFC is distributed outside the Mac App Store as a compressed UDIF disk image.
-The app and embedded login helper are signed inside-out with a Developer ID
-Application identity, Hardened Runtime, and secure timestamps. No hardened
-runtime exception entitlements are currently required. Release binaries are
-universal `arm64` and `x86_64` so the macOS 14 deployment target works on both
-supported processor families.
+The app, click-agent application, and login helper are signed inside-out with a
+Developer ID Application identity, Hardened Runtime, and secure timestamps. No
+hardened runtime exception entitlements are currently required. Release
+binaries are universal `arm64` and `x86_64` so the macOS 14 deployment target
+works on both supported processor families.
 
 The disk image contains only the app and an Applications shortcut. An optional
 660×400 background supplies a fixed Finder window layout without adding runtime

@@ -2,7 +2,16 @@
 
 set -eu
 
+case "$#" in
+  0|1) ;;
+  *)
+    echo "usage: scripts/release.sh [MAJOR.MINOR.PATCH]" >&2
+    exit 2
+    ;;
+esac
+
 JFC_REPOSITORY_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+JFC_REQUESTED_VERSION="${1:-}"
 JFC_LOCAL_ENV="$JFC_REPOSITORY_ROOT/.env.local"
 if [ -f "$JFC_LOCAL_ENV" ]; then
   set -a
@@ -51,18 +60,42 @@ if [ "$JFC_ALLOW_DIRTY_WORKTREE" != "1" ] && [ -n "$(git status --porcelain)" ];
   exit 1
 fi
 
+JFC_VERSION=$(
+  "$JFC_REPOSITORY_ROOT/scripts/release-version.sh" "$JFC_REQUESTED_VERSION"
+)
+JFC_BUILD_NUMBER="${JFC_BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+if ! printf '%s\n' "$JFC_BUILD_NUMBER" \
+  | /usr/bin/grep -Eq '^[1-9][0-9]*$'; then
+  echo "JFC_BUILD_NUMBER must be a positive integer." >&2
+  exit 2
+fi
+
+echo "Building JFC $JFC_VERSION ($JFC_BUILD_NUMBER)"
+
 JFC_CODE_SIGN_IDENTITY="$JFC_SIGNING_IDENTITY" \
 JFC_ARCHITECTURES="$JFC_RELEASE_ARCHITECTURES" \
+JFC_VERSION="$JFC_VERSION" \
+JFC_BUILD_NUMBER="$JFC_BUILD_NUMBER" \
   "$JFC_REPOSITORY_ROOT/scripts/build-app.sh" release
 
 JFC_APP_BUNDLE="$JFC_REPOSITORY_ROOT/.build/JFC.app"
 JFC_LOGIN_ITEM_BUNDLE="$JFC_APP_BUNDLE/Contents/Library/LoginItems/JFC Login Item.app"
-JFC_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+JFC_CLICK_AGENT_BUNDLE="$JFC_APP_BUNDLE/Contents/Helpers/JFC Click Agent.app"
+JFC_BUILT_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "$JFC_APP_BUNDLE/Contents/Info.plist")
+JFC_BUILT_BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+  "$JFC_APP_BUNDLE/Contents/Info.plist")
+if [ "$JFC_BUILT_VERSION" != "$JFC_VERSION" ] \
+  || [ "$JFC_BUILT_BUILD_NUMBER" != "$JFC_BUILD_NUMBER" ]; then
+  echo "Built app version does not match the requested release version." >&2
+  exit 1
+fi
 JFC_DMG_PATH="$JFC_REPOSITORY_ROOT/dist/JFC-$JFC_VERSION.dmg"
 
 /usr/bin/lipo "$JFC_APP_BUNDLE/Contents/MacOS/JFC" -verify_arch arm64 x86_64
 /usr/bin/lipo "$JFC_LOGIN_ITEM_BUNDLE/Contents/MacOS/JFCLoginItem" -verify_arch arm64 x86_64
+/usr/bin/lipo "$JFC_CLICK_AGENT_BUNDLE/Contents/MacOS/JFCClickAgent" \
+  -verify_arch arm64 x86_64
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$JFC_APP_BUNDLE"
 
 if [ -n "$JFC_EXPECTED_TEAM_ID" ]; then
