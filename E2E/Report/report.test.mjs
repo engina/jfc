@@ -31,7 +31,7 @@ test("diffs expected and actual display state and values", () => {
   );
 });
 
-test("renders a self-contained static report", () => {
+test("renders a static report with relative artifacts", () => {
   const html = renderReport(
     [
       {

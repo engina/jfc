@@ -143,13 +143,13 @@ and later. JFC continues to target macOS 14 and later. Login launches remain
 hidden; deliberate activation from Finder, Spotlight, or another launcher
 presents the control window.
 
-The login helper lives in `Contents/Library/LoginItems`. Registration was verified to
-reach the `enabled` state. A direct helper launch simulating login produced one
-main JFC UI process with both an argument and environment launch marker; the UI
-then connects to its click-agent application while remaining hidden. Reopening
-JFC reuses the UI PID and restores one control window. The helper exited cleanly in both
-registration and simulation tests. An actual logout/login or reboot remains the
-final manual acceptance test.
+The login helper lives in `Contents/Library/LoginItems`. An automated VM
+lifecycle now enables registration through the app's public UI, quits all JFC
+processes to exclude session restoration, and performs a normal macOS reboot.
+After automatic login it verifies one hidden accessory JFC process and one
+click agent, no lingering login helper, and successful first-click delivery.
+It then disables registration, reboots again, verifies that no JFC process is
+running, and confirms the expected swallowed-click control.
 
 ## Reproducing the event-path experiment
 
@@ -183,9 +183,17 @@ left the target fixture counter at `0`. The accessory-only build advanced it to
 `1`. An initial XPC-service implementation still swallowed clicks in the
 five-action D1/D3 recipe even though it used the same JFCCore logic. Moving the
 unchanged event path into the actual `LSUIElement` AppKit helper passed that
-recipe and the JFC-window-open recipe with the UI in regular mode. The final
-clean macOS 14.6.1 qualification passed all 12 recipes, including three VS Code
-→ C2 transitions in the former D1/D3 failure layout.
+recipe and the JFC-window-open recipe with the UI in regular mode. One clean
+macOS 14.6.1 qualification passed all 12 recipes, including three VS Code → C2
+transitions in the former D1/D3 failure layout. A later integrated qualification
+recorded an intermittent first-click miss in the repeated-C2 recipe; that result
+remains a release-gate failure. A subsequent clean run passed that recipe but
+missed a single click in the D2/D3/D1 placement and the first C2 click in its
+repeated-transition counterpart. Focus and window-order assertions still
+passed, while the target counters exposed the missing delivery. A later sample
+of three pristine runs produced pass, fail, pass: the middle run swallowed the
+single click in `jfc-window-open.json`, with correct focus and a counter of `0`;
+that same scenario passed in both adjacent runs.
 
 For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
 
@@ -332,8 +340,12 @@ and converted to compressed UDIF. Packaging fails if the metadata is not written
 The image is signed with the same Developer ID Application identity, submitted
 through `notarytool` using credentials stored in the Keychain, and stapled after
 acceptance. The release script validates the ticket and asks Gatekeeper to assess
-the final DMG. A Developer ID Installer certificate is unnecessary because JFC
-does not ship an installer package.
+the final DMG. It then writes a commit-bound JSON manifest and creates the
+annotated semantic-version tag. Matching completed releases are reusable;
+conflicting artifacts or tags are never overwritten. Dirty test builds use a
+separate filename and never create release metadata or tags. A Developer ID
+Installer certificate is unnecessary because JFC does not ship an installer
+package.
 
 The complete path has been exercised on the distributable artifact: Apple's
 notary service returned `Accepted`, `stapler validate` succeeded, `hdiutil`

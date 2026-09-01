@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2029
 
 set -eu
 
@@ -14,6 +15,7 @@ scp \
   "$JFC_REPOSITORY_ROOT/E2E/InstallJFC/complete-authorization.jxa" \
   "$JFC_REPOSITORY_ROOT/E2E/InstallJFC/onboarding.mjs" \
   "$JFC_REPOSITORY_ROOT/E2E/InstallJFC/reset-product-state.sh" \
+  "$JFC_REPOSITORY_ROOT/E2E/InstallJFC/start-at-login.mjs" \
   "$JFC_VM_HOST:$JFC_GUEST_ROOT/InstallJFC/"
 scp \
   "$JFC_REPOSITORY_ROOT/E2E/ScenarioExecutor/appium.mjs" \

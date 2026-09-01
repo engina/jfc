@@ -53,6 +53,12 @@ open .build/JFC.app
 Closing the window leaves JFC running. Reopen the app to show its controls;
 press `Cmd-Q` to quit.
 
+The direct-distribution release command calculates the next semantic version,
+signs and notarizes the DMG, then installs that exact artifact into a pristine
+VM and runs the full E2E product lifecycle. It records a checksum manifest and
+creates the local version tag only after every gate succeeds. The explicit
+`--no-test` option is the only bypass. See [RELEASING.md](RELEASING.md).
+
 ## Input diagnostic
 
 The separate `jfc-input-diagnostic` executable records a left click at the

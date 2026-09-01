@@ -499,11 +499,35 @@ Run the complete fail-fast product lifecycle from the host with:
 
 The runner clones the immutable preinstall baseline, proves the signed build is
 initially untrusted, enables the single `JFC Click Agent` Accessibility row,
-runs all 12 positive scenarios, verifies Stop, Start, and forced agent-crash
-recovery, runs all seven JFC-off controls, verifies final Running status, then
-captures artifacts and deletes the exact disposable clone. The qualified
-macOS 14.6.1 run completed every gate and restored a killed click agent under a
-new PID before proceeding to the negative controls.
+runs all 12 positive scenarios, and verifies Stop, Start, and forced agent-crash
+recovery. It then enables Start at Login, performs a normal macOS reboot,
+verifies hidden operation and click delivery, disables Start at Login, reboots,
+and verifies both absence and the expected swallowed-click control. Finally it
+runs all seven JFC-off controls, verifies final status, captures artifacts,
+proves product cleanup, and deletes the exact disposable clone.
+
+The release command supplies `JFC_E2E_DMG_PATH` automatically:
+
+```sh
+scripts/release.sh
+```
+
+In this mode the installer transfers the exact notarized DMG, verifies its
+SHA-256 digest on both hosts, validates its staple and Gatekeeper assessment in
+both environments, mounts it read-only, and compares the installed app's code
+identity with the image. The release remains untagged unless this entire clean
+lifecycle passes. `scripts/release.sh --no-test` is the explicit bypass.
+
+The Start-at-Login lifecycle passed independently on macOS 14.6.1. One
+integrated run then passed all functional gates but exposed a missing Appium
+restart before the final status assertion; the runner now establishes that
+precondition explicitly. Three subsequent clean runs produced pass, fail,
+pass. The complete passes took 1009.52 and 954.71 seconds. The failed run took
+615.55 seconds and stopped after 11 of 12 positives: `jfc-window-open.json`
+focused the expected C2 window but left its counter at `0`. That unchanged
+scenario passed in the runs immediately before and after it, so the failure is
+retained as intermittent release-gate evidence rather than accommodated by the
+scenario.
 
 ### JFC-off negative controls
 
@@ -589,8 +613,15 @@ accordion row whose title contains a human-readable test name, duration, and
 pass/fail status; opening it shows the initial state, action, expected output
 state, result, and mosaic video. Other recordings and final screenshots are
 collapsed under `All artifacts…`. Failed assertions show their
-expected-versus-actual differences in red. It can be opened directly from disk;
-no runtime JSON fetch is required. Rebuild it manually with:
+expected-versus-actual differences in red. The HTML keeps media at relative
+artifact paths. Serve the artifact root so the browser can load those files:
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1 --directory E2E/Artifacts
+```
+
+Then open `http://127.0.0.1:8765/<run-directory>/report.html`. Rebuild a report
+manually with:
 
 ```sh
 node scripts/generate-e2e-report.mjs

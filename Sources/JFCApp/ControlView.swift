@@ -208,6 +208,7 @@ struct ControlView: View {
             )
           )
           .labelsHidden()
+          .accessibilityIdentifier("Start at Login Toggle")
         }
       }
       .background {
@@ -280,6 +281,7 @@ struct ControlView: View {
         Text(detail)
           .font(.caption)
           .foregroundStyle(.secondary)
+          .accessibilityIdentifier("\(title) Status")
       }
 
       Spacer()

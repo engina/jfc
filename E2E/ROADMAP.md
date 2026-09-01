@@ -105,9 +105,19 @@ Status legend: complete, in progress, pending.
 34. **Pending** — Prepare and publish the release.
     Verification: documentation and version are updated, and the signed,
     notarized release artifact passes installation and launch checks.
+    - **Complete:** install, validate, onboard, and uninstall the exact
+      notarized DMG in a disposable pristine clone. This path was verified with
+      the existing notarized 0.1.2 artifact.
+    - **Complete:** enable Start at Login, reboot, verify hidden click delivery,
+      disable it, reboot, and verify absence plus the JFC-off control.
+    - **Pending:** run the complete integrated lifecycle against the final 0.2.0
+      notarized DMG and create the release tag only after it passes.
 
-The active order is 32–34. The final fail-fast macOS 14.6.1 clean run passed
-pristine installation and Accessibility onboarding, all 12 JFC-on scenarios,
-stop/start/crash recovery, all seven JFC-off controls, final Running status,
-and verified product cleanup. The former repeat VS Code D2 → Brave D3 failure
-with Brave's sibling window on D1 passed unchanged.
+The active order is 32–34. The final status runner bug is fixed. Three clean
+macOS 14.6.1 runs then produced pass, fail, pass. Both complete passes covered
+installation/onboarding, all 12 positives, lifecycle/recovery, both Start at
+Login reboots, all seven controls, final status, cleanup, and clone deletion.
+The middle run passed 11 positives but swallowed the click in
+`jfc-window-open.json`; the identical scenario passed immediately before and
+after. The release workflow will treat any such intermittent miss as a failed
+gate.

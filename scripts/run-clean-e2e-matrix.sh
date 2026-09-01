@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2029
 
 set -eu
 
@@ -39,8 +40,13 @@ for JFC_LIFECYCLE_ACTION in stop start recover; do
     "cd ~/jfc-e2e/repo && exec /opt/homebrew/bin/node E2E/InstallJFC/agent-lifecycle.mjs '$JFC_LIFECYCLE_ACTION'"
 done
 
+"$JFC_REPOSITORY_ROOT/scripts/verify-e2e-start-at-login.sh" \
+  "$JFC_VM_HOST" "$JFC_STATE_PATH" "$JFC_ARTIFACT_DIR/start-at-login"
+
 JFC_E2E_CONTROL_ARTIFACTS_DIR="$JFC_ARTIFACT_DIR/jfc-off" \
   "$JFC_REPOSITORY_ROOT/scripts/verify-e2e-jfc-off.sh" "$JFC_VM_HOST"
 
+ssh "$JFC_VM_HOST" \
+  'exec /bin/sh ~/jfc-e2e/repo/E2E/VM/start-appium.sh'
 ssh "$JFC_VM_HOST" \
   'cd ~/jfc-e2e/repo && exec /opt/homebrew/bin/node E2E/InstallJFC/agent-lifecycle.mjs status'
