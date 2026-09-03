@@ -38,7 +38,7 @@ The exact qualified versions are:
 | JFC | 0.1.1 (2), commit `f96718f` |
 | Karabiner DriverKit VirtualHIDDevice | package 8.2.0, extension 1.8.0 |
 
-The qualified guest display geometry is:
+The recorded guest display geometry is:
 
 | Display | NSScreen ID | Frame |
 | --- | ---: | --- |
@@ -56,6 +56,11 @@ Core Graphics uses these bounds for input targeting:
 
 Do not use macOS Screen Sharing for this setup. Connecting Screen Sharing
 removes or replaces BetterDisplay's guest displays.
+
+The readiness gate does not require these exact coordinates or resolutions.
+It requires three non-overlapping displays of at least 1024x768, exactly one
+main display, and Screen Recording authorization. Scenario geometry is derived
+from the topology reported for that run.
 
 ## Reproducibility contract
 
@@ -391,6 +396,13 @@ four multi-action recipes with:
 ./scripts/run-e2e-matrix.sh
 ```
 
+Select scenarios by filename substring when investigating one case:
+
+```sh
+./scripts/run-e2e-matrix.sh mac-vm \
+  --filter repeat-vscode-d1-d3-transitions
+```
+
 `vscode.surface` is a deterministic point one quarter across and halfway down
 the VS Code window frame obtained through Accessibility. Appium/System Events
 only resolves that frame; the qualified VirtualHID client performs the click.
@@ -497,6 +509,15 @@ Run the complete fail-fast product lifecycle from the host with:
 ./scripts/run-clean-e2e-matrix.sh mac-vm
 ```
 
+A filtered clean run still clones the preinstall baseline, installs JFC, proves
+and grants Accessibility, and deletes the disposable VM, but runs only matching
+positive scenarios and skips the remaining lifecycle qualification:
+
+```sh
+./scripts/run-clean-e2e-matrix.sh mac-vm \
+  --filter repeat-vscode-d1-d3-transitions
+```
+
 The runner clones the immutable preinstall baseline, proves the signed build is
 initially untrusted, enables the single `JFC Click Agent` Accessibility row,
 runs all 12 positive scenarios, and verifies Stop, Start, and forced agent-crash
@@ -528,6 +549,39 @@ focused the expected C2 window but left its counter at `0`. That unchanged
 scenario passed in the runs immediately before and after it, so the failure is
 retained as intermittent release-gate evidence rather than accommodated by the
 scenario.
+
+### Current reliability investigation
+
+On 2026-09-03, five separate fresh disposable clones passed
+`repeat-vscode-d1-d3-transitions.json`. A sixth clone then failed five
+consecutive repetitions of the unchanged scenario. Each repetition lost one
+of the three Brave-target clicks, with the loss occurring at different action
+positions. One repetition also recorded a focus assertion mismatch after a
+Brave click whose fixture counter did increment. A seventh fresh clone passed
+three pairs of the equivalent single-action recipe and repeated recipe. Only
+one VM was running at a time. This establishes temporal clustering, not a
+reproducible clone-identity difference.
+
+The older artifacts do not contain host or guest resource telemetry. Their
+remaining quantitative signals do not explain the cluster:
+
+- Failed-clone recordings lasted 19.232–19.457 seconds. The five immediately
+  preceding fresh-clone passes lasted 19.309–19.559 seconds, and a subsequent
+  25.345-second recording passed.
+- The failed and subsequent passing Appium logs had effectively identical
+  non-session request latency: 68.45 versus 68.48 ms average, 149 versus 161 ms
+  p95, and 158 versus 165 ms maximum.
+- Both Unified Logging captures contain the same lifecycle sequence, including
+  one successful event-tap start and no tap-disable or timeout state.
+- All five preceding passes, all five clustered failures, and all three later
+  repeated-scenario passes reported the same display order, point geometry,
+  and backing-pixel dimensions.
+
+Therefore VM identity, display topology, recording duration, Appium request
+latency, and the available product lifecycle states are not established
+control variables for the miss. Keep the existing failing artifacts as
+evidence. Use the condition and action-timing artifacts described above for
+new repetitions; do not retry or relax a missed action.
 
 ### JFC-off negative controls
 

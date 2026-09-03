@@ -31,8 +31,30 @@ function readyState() {
   };
 }
 
-test("accepts the exact three-display geometry", () => {
+test("accepts the recorded three-display geometry", () => {
   assert.deepEqual(displayReadinessMismatches(readyState(), manifest), []);
+});
+
+test("accepts resized and reordered non-overlapping displays", () => {
+  const state = readyState();
+  state.displays = [
+    {
+      frame: {x: 0, y: 0, width: 1920, height: 1200},
+      coreGraphicsBounds: {x: 0, y: 0, width: 1920, height: 1200},
+      isMain: true,
+    },
+    {
+      frame: {x: 4480, y: -240, width: 2560, height: 1440},
+      coreGraphicsBounds: {x: 4480, y: 0, width: 2560, height: 1440},
+      isMain: false,
+    },
+    {
+      frame: {x: 1920, y: -240, width: 2560, height: 1440},
+      coreGraphicsBounds: {x: 1920, y: 0, width: 2560, height: 1440},
+      isMain: false,
+    },
+  ];
+  assert.deepEqual(displayReadinessMismatches(state, manifest), []);
 });
 
 test("rejects a missing virtual display", () => {
@@ -40,19 +62,28 @@ test("rejects a missing virtual display", () => {
   state.displays.pop();
   assert.deepEqual(displayReadinessMismatches(state, manifest), [
     "display count is 2; expected 3",
-    "D3 is missing",
   ]);
 });
 
-test("rejects shifted AppKit and Core Graphics geometry", () => {
+test("rejects missing screen capture, an unusable display, and overlap", () => {
   const state = readyState();
-  state.displays[1].frame = {...state.displays[1].frame, x: 1400};
+  state.screenCaptureAllowed = false;
+  state.displays[1].frame = {...state.displays[1].frame, width: 800};
   state.displays[2].coreGraphicsBounds = {
     ...state.displays[2].coreGraphicsBounds,
-    y: 10,
+    x: 3_000,
   };
   assert.deepEqual(displayReadinessMismatches(state, manifest), [
-    "D2 AppKit frame is 1400,-534 2560x1440; expected 1450,-534 2560x1440",
-    "D3 Core Graphics bounds are 4010,10 2560x1440; expected 4010,0 2560x1440",
+    "screen capture is not authorized",
+    "D2 AppKit frame is not usable: 1450,-534 800x1440",
+    "D2 and D3 overlap",
+  ]);
+});
+
+test("rejects an ambiguous main display", () => {
+  const state = readyState();
+  state.displays[1].isMain = true;
+  assert.deepEqual(displayReadinessMismatches(state, manifest), [
+    "main display count is 2; expected 1",
   ]);
 });

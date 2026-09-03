@@ -4,11 +4,39 @@
 set -eu
 
 JFC_REPOSITORY_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-JFC_VM_HOST="${1:-mac-vm}"
+JFC_VM_HOST='mac-vm'
+JFC_VM_HOST_SET=false
+JFC_SCENARIO_FILTER=''
 JFC_TIMESTAMP=$(/bin/date -u '+%Y%m%dT%H%M%SZ')
 JFC_ARTIFACT_DIR="${JFC_E2E_ARTIFACTS_DIR:-$JFC_REPOSITORY_ROOT/E2E/Artifacts/matrix-$JFC_TIMESTAMP}"
 JFC_STATE_PATH="$JFC_REPOSITORY_ROOT/.build/e2e-vm/current.json"
 JFC_AFTER_ALL_REQUIRED=false
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --filter)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        echo "--filter requires a non-empty substring" >&2
+        exit 2
+      fi
+      JFC_SCENARIO_FILTER=$2
+      shift 2
+      ;;
+    -*)
+      echo "unknown option: $1" >&2
+      exit 2
+      ;;
+    *)
+      if [ "$JFC_VM_HOST_SET" = true ]; then
+        echo "unexpected argument: $1" >&2
+        exit 2
+      fi
+      JFC_VM_HOST=$1
+      JFC_VM_HOST_SET=true
+      shift
+      ;;
+  esac
+done
 
 jfc_after_all() {
   JFC_STATUS=$?
@@ -30,6 +58,13 @@ if ! "$JFC_REPOSITORY_ROOT/scripts/e2e-before-all.sh" \
   "$JFC_VM_HOST" "$JFC_STATE_PATH"
 then
   exit 1
+fi
+
+if [ -n "$JFC_SCENARIO_FILTER" ]; then
+  JFC_E2E_ARTIFACTS_DIR="$JFC_ARTIFACT_DIR" \
+    "$JFC_REPOSITORY_ROOT/scripts/run-e2e-matrix.sh" \
+      "$JFC_VM_HOST" --filter "$JFC_SCENARIO_FILTER"
+  exit 0
 fi
 
 JFC_E2E_ARTIFACTS_DIR="$JFC_ARTIFACT_DIR" \
