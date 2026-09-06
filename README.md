@@ -53,6 +53,19 @@ open .build/JFC.app
 Closing the window leaves JFC running. Reopen the app to show its controls;
 press `Cmd-Q` to quit.
 
+## Upgrading from 0.1.1
+
+Quit the old JFC, replace it in Applications with the app from the new DMG,
+and open JFC again. In System Settings → Privacy & Security → Accessibility,
+enable **JFC Click Agent**. The new helper has its own permission entry; the
+previous JFC grant does not authorize it.
+
+`Cmd-Q` quits both JFC and its click agent. To uninstall, first disable
+**Start at Login**, quit JFC, then move JFC.app to Trash. Both helpers are
+inside the app bundle. Saved preferences and Accessibility entries may remain.
+
+## Releasing
+
 The direct-distribution release command calculates the next semantic version,
 signs and notarizes the DMG, then installs that exact artifact into a pristine
 VM and runs the full E2E product lifecycle. It records a checksum manifest and

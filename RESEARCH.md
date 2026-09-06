@@ -197,6 +197,21 @@ that same scenario passed in both adjacent runs.
 
 For resolver-only diagnostics, use `.build/debug/jfc --observe --verbose`.
 
+### Subsequent reliability investigation
+
+Controlled comparisons of zero, 50, and 500 ms holds after focusing the target
+each recorded three missed Brave clicks out of thirty. The fixed-delay
+experiment did not improve delivery, and its product override was removed.
+Click circles in recordings did not consistently predict counter increments.
+The controlling condition remains unknown; retained findings and artifact
+locations are in [HANDOFF.md](HANDOFF.md).
+
+On September 6, 2026, the maintainer reported that normal use of notarized
+0.2.0 on their Mac worked well and chose to release through the existing
+`--no-test` mode. This report is physical-use evidence, not a recorded completion
+of the prescribed 20-click regression. The release manifest records automated
+qualification as skipped; the intermittent VM investigation remains open.
+
 For an intermittent focus or first-click failure, stop the menu-bar app so only
 one event tap is active, then run the CLI's opt-in forensic capture:
 
