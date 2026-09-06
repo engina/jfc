@@ -78,6 +78,14 @@ export async function collectLatestRuns(artifactsDirectory, scenariosDirectory) 
     } catch {
       continue;
     }
+    let diagnostics = null;
+    try {
+      diagnostics = await readJSON(
+        path.join(artifactsDirectory, entry.name, "diagnostics-summary.json"),
+      );
+    } catch {
+      // Older retained runs predate comparable condition capture.
+    }
     let durationMs = result.durationMs;
     if (!Number.isFinite(durationMs) || durationMs < 0) {
       const startedAt = timestampMilliseconds(match[1]);
@@ -94,6 +102,7 @@ export async function collectLatestRuns(artifactsDirectory, scenariosDirectory) 
         recordedAt: match[1],
         result,
         scenario,
+        diagnostics,
       });
     }
   }
@@ -423,6 +432,18 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
           mosaicLink.target = "_blank";
           mosaicLink.rel = "noreferrer";
           artifactLinks.append(mosaicLink);
+          for (const [filename, label] of [
+            ["diagnostics-summary.json", "Diagnostics summary"],
+            ["host-conditions.jsonl", "Host conditions"],
+            ["guest-conditions.jsonl", "Guest conditions"],
+            ["action-timings.jsonl", "Action timings"],
+          ]) {
+            const link = element("a", "", label);
+            link.href = run.artifactDirectory + "/" + filename;
+            link.target = "_blank";
+            link.rel = "noreferrer";
+            artifactLinks.append(link);
+          }
           for (let display = 1; display <= 3; display += 1) {
             const screenshotURL = run.artifactDirectory + "/displays/display-" + display + ".png";
             const recordingURL = run.artifactDirectory + "/display-" + display + ".mp4";
@@ -465,6 +486,10 @@ export function renderReport(runs, generatedAt = new Date().toISOString()) {
           technical.append(element("pre", "", JSON.stringify(run.scenario, null, 2)));
           technical.append(element("strong", "", "Result JSON"));
           technical.append(element("pre", "", JSON.stringify(run.result, null, 2)));
+          if (run.diagnostics) {
+            technical.append(element("strong", "", "Diagnostics summary"));
+            technical.append(element("pre", "", JSON.stringify(run.diagnostics, null, 2)));
+          }
           card.append(technical);
           runsElement.append(card);
         }

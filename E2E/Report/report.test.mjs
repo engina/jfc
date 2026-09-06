@@ -62,6 +62,7 @@ test("renders a static report with relative artifacts", () => {
             },
           ],
         },
+        diagnostics: {schemaVersion: 1, host: {sampleCount: 4}},
       },
     ],
     "2026-08-30T05:30:00.000Z",
@@ -85,6 +86,10 @@ test("renders a static report with relative artifacts", () => {
   assert.match(html, /const screenshotURL = .*\/displays\/display-/);
   assert.match(html, /const recordingURL = .*\/display-/);
   assert.match(html, /mosaic\.mp4/);
+  assert.match(html, /Diagnostics summary/);
+  assert.match(html, /host-conditions\.jsonl/);
+  assert.match(html, /guest-conditions\.jsonl/);
+  assert.match(html, /action-timings\.jsonl/);
   assert.doesNotMatch(html, /<video/);
   assert.doesNotMatch(html, /fetch\(/);
   const scripts = [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)];

@@ -1,7 +1,7 @@
 import {MultiDisplayRecorder} from "./recording.mjs";
 
 function usage() {
-  return "usage: record-displays.mjs --output DIR [--duration SECONDS] [--fps FPS] [--appium URL]";
+  return "usage: record-displays.mjs --output DIR [--duration SECONDS] [--fps FPS]";
 }
 
 function parsePositiveInteger(value, option) {
@@ -17,7 +17,6 @@ function parseArguments(argv) {
     output: null,
     duration: 5,
     fps: 10,
-    appiumUrl: "http://127.0.0.1:4723",
   };
   const args = [...argv];
   while (args.length) {
@@ -29,8 +28,7 @@ function parseArguments(argv) {
       options.duration = parsePositiveInteger(value, option);
     } else if (option === "--fps") {
       options.fps = parsePositiveInteger(value, option);
-    } else if (option === "--appium") options.appiumUrl = value;
-    else throw new Error(`unknown option: ${option}\n${usage()}`);
+    } else throw new Error(`unknown option: ${option}\n${usage()}`);
   }
   if (!options.output) throw new Error(usage());
   return options;

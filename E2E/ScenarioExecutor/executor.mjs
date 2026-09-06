@@ -13,6 +13,7 @@ import {
   normalizeWindowState,
 } from "./result.mjs";
 import {loadScenario} from "./scenario.mjs";
+import {ActionTimingLog} from "./timing.mjs";
 
 const APP = {
   jfc: {
@@ -45,7 +46,7 @@ const VIRTUAL_HID_JOB = "system/io.e10n.jfc.e2e.virtual-hid";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 function usage() {
-  return "usage: executor.mjs <scenario.json> --fixture <index.html> [--recordings DIR] [--appium URL]";
+  return "usage: executor.mjs <scenario.json> --fixture <index.html> [--recordings DIR] [--recording-fps FPS] [--timings FILE] [--appium URL]";
 }
 
 function parseArguments(argv) {
@@ -53,16 +54,30 @@ function parseArguments(argv) {
   const scenarioPath = args.shift();
   let fixturePath = null;
   let recordingsPath = null;
+  let recordingFps = 10;
+  let timingsPath = null;
   let appiumUrl = "http://127.0.0.1:4723";
   while (args.length) {
     const option = args.shift();
     if (option === "--fixture") fixturePath = args.shift();
     else if (option === "--recordings") recordingsPath = args.shift();
+    else if (option === "--recording-fps") recordingFps = Number(args.shift());
+    else if (option === "--timings") timingsPath = args.shift();
     else if (option === "--appium") appiumUrl = args.shift();
     else throw new Error(`unknown option: ${option}`);
   }
   if (!scenarioPath || !fixturePath) throw new Error(usage());
-  return {scenarioPath, fixturePath, recordingsPath, appiumUrl};
+  if (!Number.isInteger(recordingFps) || recordingFps < 1 || recordingFps > 240) {
+    throw new Error("--recording-fps must be an integer from 1 through 240");
+  }
+  return {
+    scenarioPath,
+    fixturePath,
+    recordingsPath,
+    recordingFps,
+    timingsPath,
+    appiumUrl,
+  };
 }
 
 function appleString(value) {
@@ -473,6 +488,24 @@ async function resolveControls(client, scenario) {
   return result;
 }
 
+function recordFixtureInputTraces(timingLog, identifiedWindows, action, control) {
+  if (!timingLog || !identifiedWindows) return;
+  for (const {key, record} of identifiedWindows) {
+    if (record.bundleID !== APP.brave.bundleID) continue;
+    const match = /([A-Za-z]*)\] — [0-9]+$/.exec(record.title);
+    const events = match ? [...match[1]].map((code) => ({code})) : [];
+    timingLog.write({
+      kind: "fixtureInputTrace",
+      action,
+      control,
+      window: key,
+      available: match !== null,
+      events,
+      ...(match ? {} : {observedTitle: record.title}),
+    });
+  }
+}
+
 function readMachineState() {
   const output = execFileSync("xcrun", ["swift", path.join(here, "state.swift")], {
     encoding: "utf8",
@@ -665,6 +698,12 @@ async function main() {
   const source = await readFile(options.scenarioPath, "utf8");
   const scenario = loadScenario(source);
   validateRuntimeVocabulary(scenario);
+  const timingLog = options.timingsPath
+    ? new ActionTimingLog({
+      filename: options.timingsPath,
+      scenario: path.basename(options.scenarioPath),
+    })
+    : null;
   const client = new AppiumClient(options.appiumUrl);
   let virtualHIDDaemonStarted = false;
   let recorder = null;
@@ -705,7 +744,7 @@ async function main() {
       );
     }
     if (options.recordingsPath) {
-      recorder = new MultiDisplayRecorder({appiumUrl: options.appiumUrl});
+      recorder = new MultiDisplayRecorder({fps: options.recordingFps});
       await recorder.open();
       await recorder.start();
       await sleep(750);
@@ -715,62 +754,115 @@ async function main() {
     await assertDaemonRunning();
     const assertions = [];
     for (const [index, action] of scenario.actions.entries()) {
-      if (action.click) {
-        const control = controls[action.click.key];
-        positionPointer(control.rect);
-        sendVirtualHIDClick();
-        await sleep(300);
-      }
-
-      const actualState = {};
-      let assertionPassed = true;
-      let postActionState = null;
-      let identifiedPostActionWindows = null;
-      if (action.expect.windows) {
-        const expectedActive = allWindows(action.expect.windows).find(({active}) => active);
-        const expectedFocusedTitle = await queryFocusedWindowTitle(client, expectedActive);
-        postActionState = readMachineState();
-        const windowVerification = verifyState(
-          {windows: action.expect.windows},
-          postActionState,
-          controls,
-          expectedFocusedTitle,
-        );
-        identifiedPostActionWindows = windowVerification.windows;
-        assertionPassed = windowVerification.checks.every(({pass}) => pass);
-        actualState.windows = normalizeWindowState(
-          action.expect.windows,
-          windowVerification.windows,
-          windowVerification.focusedWindow,
-        );
-      }
-
-      if (action.expect.values.length > 0) {
-        postActionState ??= readMachineState();
-        identifiedPostActionWindows ??= identifyWindows(
-          postActionState,
-          allWindows(scenario.windows),
-        );
-        for (const {target, expected} of action.expect.values) {
-          let actual = null;
-          try {
-            actual = observedControlValue(target, identifiedPostActionWindows);
-          } catch {
-            assertionPassed = false;
-          }
-          actualState[target.key] = actual;
-          if (actual !== expected) {
-            assertionPassed = false;
+      const actionTiming = timingLog?.beginAction(index + 1, action.click?.key ?? null);
+      let openPhase = null;
+      try {
+        if (action.click) {
+          const control = controls[action.click.key];
+          if (actionTiming) {
+            actionTiming.phaseSync(
+              "pointerPositioning",
+              () => positionPointer(control.rect),
+            );
+            actionTiming.phaseSync("virtualHIDClick", sendVirtualHIDClick);
+            await actionTiming.phase("postClickSettle", async () => await sleep(300));
+          } else {
+            positionPointer(control.rect);
+            sendVirtualHIDClick();
+            await sleep(300);
           }
         }
-      }
 
-      if (action.expect.windows || action.expect.values.length > 0) {
-        assertions.push({
-          afterAction: index + 1,
-          status: assertionPassed ? "passed" : "failed",
-          state: actualState,
-        });
+        openPhase = actionTiming?.beginPhase("postActionVerification");
+        const actualState = {};
+        const verificationFailures = [];
+        let assertionPassed = true;
+        let postActionState = null;
+        let identifiedPostActionWindows = null;
+        if (action.expect.windows) {
+          const expectedActive = allWindows(action.expect.windows)
+            .find(({active}) => active);
+          const expectedFocusedTitle = await queryFocusedWindowTitle(
+            client,
+            expectedActive,
+          );
+          postActionState = readMachineState();
+          const windowVerification = verifyState(
+            {windows: action.expect.windows},
+            postActionState,
+            controls,
+            expectedFocusedTitle,
+          );
+          identifiedPostActionWindows = windowVerification.windows;
+          assertionPassed = windowVerification.checks.every(({pass}) => pass);
+          verificationFailures.push(
+            ...windowVerification.checks.filter(({pass}) => !pass).map(
+              ({name, actual, expected}) => ({
+                name,
+                actual: actual ?? null,
+                expected,
+              }),
+            ),
+          );
+          actualState.windows = normalizeWindowState(
+            action.expect.windows,
+            windowVerification.windows,
+            windowVerification.focusedWindow,
+          );
+        }
+
+        if (action.expect.values.length > 0) {
+          postActionState ??= readMachineState();
+          identifiedPostActionWindows ??= identifyWindows(
+            postActionState,
+            allWindows(scenario.windows),
+          );
+          for (const {target, expected} of action.expect.values) {
+            let actual = null;
+            let lookupError = null;
+            try {
+              actual = observedControlValue(target, identifiedPostActionWindows);
+            } catch (error) {
+              lookupError = error.message;
+              assertionPassed = false;
+            }
+            actualState[target.key] = actual;
+            if (actual !== expected) {
+              assertionPassed = false;
+              verificationFailures.push({
+                name: target.key,
+                actual,
+                expected,
+                ...(lookupError ? {error: lookupError} : {}),
+              });
+            }
+          }
+        }
+
+        recordFixtureInputTraces(
+          timingLog,
+          identifiedPostActionWindows,
+          index + 1,
+          action.click?.key ?? null,
+        );
+
+        if (action.expect.windows || action.expect.values.length > 0) {
+          assertions.push({
+            afterAction: index + 1,
+            status: assertionPassed ? "passed" : "failed",
+            state: actualState,
+          });
+        }
+        openPhase?.complete();
+        openPhase = null;
+        actionTiming?.complete(
+          assertionPassed ? "passed" : "failed",
+          verificationFailures,
+        );
+      } catch (error) {
+        openPhase?.fail(error);
+        actionTiming?.fail(error);
+        throw error;
       }
     }
     if (recorder) {

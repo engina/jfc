@@ -24,6 +24,8 @@ if ssh "$JFC_VM_HOST" '/bin/test -d /Applications/JFC.app'; then
     /usr/bin/sw_vers
     /usr/bin/codesign -d --verbose=4 /Applications/JFC.app 2>&1
   ' > "$JFC_ARTIFACT_DIR/guest-installation.txt"
+  scp "$JFC_VM_HOST:jfc-e2e/install/installation-artifact.json" \
+    "$JFC_ARTIFACT_DIR/installation-artifact.json"
 elif [ ! -s "$JFC_ARTIFACT_DIR/guest-installation.txt" ]; then
   echo "JFC was not installed before setup failed" \
     > "$JFC_ARTIFACT_DIR/guest-installation.txt"

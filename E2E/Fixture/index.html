@@ -43,6 +43,7 @@
         text-align: center;
         width: 5ch;
       }
+
     </style>
   </head>
   <body data-click-count="0">
@@ -61,7 +62,6 @@
         value="0"
       >
     </main>
-
     <script>
       (() => {
         "use strict";
@@ -71,18 +71,44 @@
         const heading = document.querySelector("#fixture-title");
         const windowName = new URLSearchParams(window.location.search).get("window");
         let clickCount = 0;
+        const inputEvents = [];
+
+        const renderTitle = () => {
+          const prefix = windowName ? `${windowName} — ` : "";
+          const trace = inputEvents.join("");
+          document.title = `${prefix}JFC Click Fixture [input=${trace}] — ${clickCount}`;
+        };
+
+        const recordInputEvent = (event) => {
+          const code = {
+            ready: "r",
+            focus: "f",
+            blur: "b",
+            mousedown: "d",
+            mouseup: "u",
+            click: "c",
+          }[event.type];
+          inputEvents.push(event.isTrusted ? code.toUpperCase() : code);
+          renderTitle();
+        };
 
         const render = () => {
           const value = String(clickCount);
-          const prefix = windowName ? `${windowName} — ` : "";
           output.value = value;
           document.body.dataset.clickCount = value;
           document.body.dataset.window = windowName ?? "";
           heading.textContent = windowName
             ? `JFC click fixture: ${windowName}`
             : "JFC click fixture";
-          document.title = `${prefix}JFC Click Fixture — ${value}`;
+          renderTitle();
         };
+
+        for (const eventName of ["mousedown", "mouseup", "click"]) {
+          target.addEventListener(eventName, recordInputEvent, {capture: true});
+        }
+        window.addEventListener("focus", recordInputEvent);
+        window.addEventListener("blur", recordInputEvent);
+        recordInputEvent(new Event("ready"));
 
         target.addEventListener("click", () => {
           clickCount += 1;

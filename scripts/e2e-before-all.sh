@@ -10,9 +10,16 @@ JFC_UTMCTL="/Applications/UTM.app/Contents/MacOS/utmctl"
 
 if [ -f "$JFC_LOCAL_ENV" ]; then
   set -a
+  # shellcheck disable=SC1090
   . "$JFC_LOCAL_ENV"
   set +a
 fi
+
+JFC_E2E_DMG_PATH=$(
+  "$JFC_REPOSITORY_ROOT/scripts/validate-e2e-dmg.sh" \
+    "${JFC_E2E_DMG_PATH:-}"
+)
+export JFC_E2E_DMG_PATH
 
 if [ -z "${JFC_E2E_VM_PASSWORD:-}" ]; then
   if [ ! -t 0 ]; then
