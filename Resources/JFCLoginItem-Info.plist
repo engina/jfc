@@ -9,7 +9,7 @@
   <key>CFBundleExecutable</key>
   <string>JFCLoginItem</string>
   <key>CFBundleIdentifier</key>
-  <string>com.justfuckingclick.JFC.LoginItem</string>
+  <string>io.e10n.jfc.login-item</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 public enum JFCLog {
-  public static let subsystem = "com.justfuckingclick.JFC"
+  public static let subsystem = "io.e10n.jfc"
 
   private static let lifecycleLogger = Logger(subsystem: subsystem, category: "lifecycle")
   private static let permissionLogger = Logger(subsystem: subsystem, category: "permissions")

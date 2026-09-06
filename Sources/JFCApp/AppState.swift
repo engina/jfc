@@ -5,7 +5,7 @@ import ServiceManagement
 
 @MainActor
 final class AppState: ObservableObject {
-  static let loginItemIdentifier = "com.justfuckingclick.JFC.LoginItem"
+  static let loginItemIdentifier = "io.e10n.jfc.login-item"
 
   enum OperationalState: Equatable {
     case running

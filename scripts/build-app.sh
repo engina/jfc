@@ -60,10 +60,10 @@ if [ "$JFC_SIGNING_IDENTITY" = "-" ]; then
   # every rebuild is identified only by a new code hash and macOS can leave an
   # apparently enabled Accessibility entry attached to the previous build.
   /usr/bin/codesign --force --sign - --options runtime \
-    --requirements '=designated => identifier "com.justfuckingclick.JFC.LoginItem"' \
+    --requirements '=designated => identifier "io.e10n.jfc.login-item"' \
     "$JFC_LOGIN_ITEM_BUNDLE"
   /usr/bin/codesign --force --sign - --options runtime \
-    --requirements '=designated => identifier "com.justfuckingclick.JFC"' \
+    --requirements '=designated => identifier "io.e10n.jfc"' \
     "$JFC_APP_BUNDLE"
 else
   /usr/bin/codesign --force --sign "$JFC_SIGNING_IDENTITY" --options runtime --timestamp \

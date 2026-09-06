@@ -9,7 +9,7 @@
   <key>CFBundleExecutable</key>
   <string>JFC</string>
   <key>CFBundleIdentifier</key>
-  <string>com.justfuckingclick.JFC</string>
+  <string>io.e10n.jfc</string>
   <key>CFBundleIconFile</key>
   <string>JFC.icns</string>
   <key>CFBundleInfoDictionaryVersion</key>
