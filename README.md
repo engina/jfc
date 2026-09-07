@@ -4,13 +4,10 @@
 
 <h1 align="center">jfc</h1>
 
-You have a wide screen or two displays, and you're working with two windows: one
-for coding, the other for a media player—say, YouTube. You want to quickly play
-or pause a video, or navigate to another one, but macOS swallows your first
-click just to activate the media window, forcing you to click again. It gets a
-little annoying every time. Well, no more!
+When you click a control in an inactive window, macOS uses the first click just
+to activate it. You have to click again.
 
-JFC is a minimal app that makes your first click go through.
+JFC is a minimal app that makes the first click count.
 
 [Download the latest release](https://github.com/engina/jfc/releases/latest) · macOS 14+
 
@@ -25,6 +22,16 @@ JFC is a minimal app that makes your first click go through.
 <img src="Docs/screenshots/running.png" width="650" alt="JFC running with Accessibility permission and Start at Login enabled.">
 
 <img src="Docs/screenshots/stopped.png" width="650" alt="JFC stopped with Start at Login disabled.">
+
+## Disclaimer
+
+This is experimental software developed _completely_ via AI.
+
+Core working principle is discovered, implemented and proved to be a promising start in 15 minutes.
+
+0.1.0 is built in a (full) day including all tooling, notarized DMG with background, readme with animation by AI.
+
+Then a bug is discovered and debugging it took days (greenfield -> brownfield).
 
 ## How it works
 
